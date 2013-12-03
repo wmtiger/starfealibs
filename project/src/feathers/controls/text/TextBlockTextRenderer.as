@@ -11,14 +11,22 @@ package feathers.controls.text
 	import feathers.core.ITextRenderer;
 
 	import flash.display.BitmapData;
+	import flash.display.DisplayObjectContainer;
+	import flash.display.Sprite;
 	import flash.geom.Matrix;
 	import flash.geom.Point;
-	import flash.text.AntiAliasType;
-	import flash.text.GridFitType;
-	import flash.text.StyleSheet;
-	import flash.text.TextField;
-	import flash.text.TextFieldAutoSize;
-	import flash.text.TextFormat;
+	import flash.text.engine.ContentElement;
+	import flash.text.engine.ElementFormat;
+	import flash.text.engine.FontDescription;
+	import flash.text.engine.SpaceJustifier;
+	import flash.text.engine.TabStop;
+	import flash.text.engine.TextBaseline;
+	import flash.text.engine.TextBlock;
+	import flash.text.engine.TextElement;
+	import flash.text.engine.TextJustifier;
+	import flash.text.engine.TextLine;
+	import flash.text.engine.TextLineValidity;
+	import flash.text.engine.TextRotation;
 
 	import starling.core.RenderSupport;
 	import starling.core.Starling;
@@ -29,10 +37,11 @@ package feathers.controls.text
 	import starling.utils.getNextPowerOfTwo;
 
 	/**
-	 * Renders text with a native <code>flash.text.TextField</code> and draws
-	 * it to <code>BitmapData</code> to convert to Starling textures. Textures
-	 * are completely managed by this component, and they will be automatically
-	 * disposed when the component is removed from the stage.
+	 * Renders text with a native <code>flash.text.engine.TextBlock</code> from
+	 * Flash Text Engine (FTE), and draws it to <code>BitmapData</code> to
+	 * convert to Starling textures. Textures are completely managed by this
+	 * component, and they will be automatically disposed when the component is
+	 * removed from the stage.
 	 *
 	 * <p>For longer passages of text, this component will stitch together
 	 * multiple individual textures both horizontally and vertically, as a grid,
@@ -41,9 +50,9 @@ package feathers.controls.text
 	 * caution when displaying a lot of text.</p>
 	 *
 	 * @see http://wiki.starling-framework.org/feathers/text-renderers
-	 * @see flash.text.TextField
+	 * @see flash.text.engine.TextBlock
 	 */
-	public class TextFieldTextRenderer extends FeathersControl implements ITextRenderer
+	public class TextBlockTextRenderer extends FeathersControl implements ITextRenderer
 	{
 		/**
 		 * @private
@@ -56,9 +65,36 @@ package feathers.controls.text
 		private static const HELPER_MATRIX:Matrix = new Matrix();
 
 		/**
+		 * The text will be positioned to the left edge.
+		 *
+		 * @see #textAlign
+		 */
+		public static const TEXT_ALIGN_LEFT:String = "left";
+
+		/**
+		 * The text will be centered horizontally.
+		 *
+		 * @see #textAlign
+		 */
+		public static const TEXT_ALIGN_CENTER:String = "center";
+
+		/**
+		 * The text will be positioned to the right edge.
+		 *
+		 * @see #textAlign
+		 */
+		public static const TEXT_ALIGN_RIGHT:String = "right";
+
+		/**
+		 * @private
+		 * This is enforced by the runtime.
+		 */
+		protected static const MAX_TEXT_LINE_WIDTH:Number = 1000000;
+
+		/**
 		 * Constructor.
 		 */
-		public function TextFieldTextRenderer()
+		public function TextBlockTextRenderer()
 		{
 			this.isQuickHitAreaEnabled = true;
 			this.addEventListener(Event.ADDED_TO_STAGE, addedToStageHandler);
@@ -66,13 +102,13 @@ package feathers.controls.text
 		}
 
 		/**
-		 * The TextField instance used to render the text before taking a
+		 * The TextBlock instance used to render the text before taking a
 		 * texture snapshot.
 		 */
-		protected var textField:TextField;
+		protected var textBlock:TextBlock;
 
 		/**
-		 * An image that displays a snapshot of the native <code>TextField</code>
+		 * An image that displays a snapshot of the native <code>TextBlock</code>
 		 * in the Starling display list when the editor doesn't have focus.
 		 */
 		protected var textSnapshot:Image;
@@ -86,12 +122,32 @@ package feathers.controls.text
 		/**
 		 * @private
 		 */
-		protected var _previousTextFieldWidth:Number = NaN;
+		protected var _textLineContainer:Sprite;
 
 		/**
 		 * @private
 		 */
-		protected var _previousTextFieldHeight:Number = NaN;
+		protected var _textLines:Vector.<TextLine> = new <TextLine>[];
+
+		/**
+		 * @private
+		 */
+		protected var _measurementTextLineContainer:Sprite;
+
+		/**
+		 * @private
+		 */
+		protected var _measurementTextLines:Vector.<TextLine> = new <TextLine>[];
+
+		/**
+		 * @private
+		 */
+		protected var _previousContentWidth:Number = NaN;
+
+		/**
+		 * @private
+		 */
+		protected var _previousContentHeight:Number = NaN;
 
 		/**
 		 * @private
@@ -111,7 +167,7 @@ package feathers.controls.text
 		/**
 		 * @private
 		 */
-		protected var _text:String = "";
+		protected var _textElement:TextElement;
 
 		/**
 		 * @inheritDoc
@@ -125,7 +181,7 @@ package feathers.controls.text
 		 */
 		public function get text():String
 		{
-			return this._text;
+			return this._textElement ? this._textElement.text : null;
 		}
 
 		/**
@@ -133,204 +189,215 @@ package feathers.controls.text
 		 */
 		public function set text(value:String):void
 		{
-			if(this._text == value)
+			var textElement:TextElement = this._textElement;
+			if(textElement && textElement.text == value)
 			{
 				return;
 			}
-			if(value === null)
+			if(!textElement)
 			{
-				//flash.text.TextField won't accept a null value
-				value = "";
+				textElement = new TextElement(value);
+				this.content = textElement;
+				return;
 			}
-			this._text = value;
+			textElement.text = value;
 			this.invalidate(INVALIDATION_FLAG_DATA);
 		}
 
 		/**
 		 * @private
 		 */
-		protected var _isHTML:Boolean = false;
+		protected var _content:ContentElement;
 
 		/**
-		 * Determines if the TextField should display the text as HTML or not.
+		 * Sets the contents of the <code>TextBlock</code> to a complex value
+		 * that is more than simple text. If the <code>text</code> property is
+		 * set after the <code>content</code> property, the <code>content</code>
+		 * property will be replaced with a <code>TextElement</code>.
 		 *
-		 * <p>In the following example, the text is displayed as HTML:</p>
+		 * <p>In the following example, the content is changed to a
+		 * <code>GroupElement</code>:</p>
 		 *
 		 * <listing version="3.0">
-		 * textRenderer.isHTML = true;</listing>
+		 * textRenderer.content = new GroupElement( element );</listing>
 		 *
-		 * @default false
-		 *
-		 * @see flash.text.TextField#htmlText
-		 */
-		public function get isHTML():Boolean
-		{
-			return this._isHTML;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set isHTML(value:Boolean):void
-		{
-			if(this._isHTML == value)
-			{
-				return;
-			}
-			this._isHTML = value;
-			this.invalidate(INVALIDATION_FLAG_DATA);
-		}
-
-		/**
-		 * @private
-		 */
-		protected var _textFormat:TextFormat;
-
-		/**
-		 * The font and styles used to draw the text.
-		 *
-		 * <p>In the following example, the text format is changed:</p>
+		 * <p>To simply display a string value, use the <code>text</code> property
+		 * instead:</p>
 		 *
 		 * <listing version="3.0">
-		 * textRenderer.textFormat = new TextFormat( "Source Sans Pro" );</listing>
+		 * textRenderer.text = "Lorem Ipsum";</listing>
 		 *
 		 * @default null
 		 *
-		 * @see #disabledTextFormat
-		 * @see flash.text.TextFormat
+		 * @see #text
 		 */
-		public function get textFormat():TextFormat
+		public function get content():ContentElement
 		{
-			return this._textFormat;
+			return this._content;
 		}
 
 		/**
 		 * @private
 		 */
-		public function set textFormat(value:TextFormat):void
+		public function set content(value:ContentElement):void
 		{
-			if(this._textFormat == value)
+			if(this._content == value)
 			{
 				return;
 			}
-			this._textFormat = value;
+			if(value is TextElement)
+			{
+				this._textElement = TextElement(value);
+			}
+			this._content = value;
+			this.invalidate(INVALIDATION_FLAG_DATA);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _elementFormat:ElementFormat;
+
+		/**
+		 * The font and styles used to draw the text. This property will be
+		 * ignored if the content is not a <code>TextElement</code> instance.
+		 *
+		 * <p>In the following example, the element format is changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.elementFormat = new ElementFormat( new FontDescription( "Source Sans Pro" ) );</listing>
+		 *
+		 * @default null
+		 *
+		 * @see #disabledElementFormat
+		 * @see flash.text.engine.ElementFormat
+		 */
+		public function get elementFormat():ElementFormat
+		{
+			return this._elementFormat;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set elementFormat(value:ElementFormat):void
+		{
+			if(this._elementFormat == value)
+			{
+				return;
+			}
+			this._elementFormat = value;
 			this.invalidate(INVALIDATION_FLAG_STYLES);
 		}
 
 		/**
 		 * @private
 		 */
-		protected var _disabledTextFormat:TextFormat;
+		protected var _disabledElementFormat:ElementFormat;
 
 		/**
-		 * The font and styles used to draw the text when the component is disabled.
+		 * The font and styles used to draw the text when the component is
+		 * disabled. This property will be ignored if the content is not a
+		 * <code>TextElement</code> instance.
 		 *
-		 * <p>In the following example, the disabled text format is changed:</p>
+		 * <p>In the following example, the disabled element format is changed:</p>
 		 *
 		 * <listing version="3.0">
 		 * textRenderer.isEnabled = false;
-		 * textRenderer.disabledTextFormat = new TextFormat( "Source Sans Pro" );</listing>
+		 * textRenderer.disabledElementFormat = new ElementFormat( new FontDescription( "Source Sans Pro" ) );</listing>
 		 *
 		 * @default null
 		 *
-		 * @see #textFormat
-		 * @see flash.text.TextFormat
+		 * @see #elementFormat
+		 * @see flash.text.engine.ElementFormat
 		 */
-		public function get disabledTextFormat():TextFormat
+		public function get disabledElementFormat():ElementFormat
 		{
-			return this._disabledTextFormat;
+			return this._disabledElementFormat;
 		}
 
 		/**
 		 * @private
 		 */
-		public function set disabledTextFormat(value:TextFormat):void
+		public function set disabledElementFormat(value:ElementFormat):void
 		{
-			if(this._disabledTextFormat == value)
+			if(this._disabledElementFormat == value)
 			{
 				return;
 			}
-			this._disabledTextFormat = value;
+			this._disabledElementFormat = value;
 			this.invalidate(INVALIDATION_FLAG_STYLES);
 		}
 
 		/**
 		 * @private
 		 */
-		protected var _styleSheet:StyleSheet;
+		protected var _leading:Number = 0;
 
 		/**
-		 * The <code>StyleSheet</code> object to pass to the TextField.
+		 * The amount of vertical space, in pixels, between lines.
 		 *
-		 * <p>In the following example, the text is changed:</p>
+		 * <p>In the following example, the leading is changed to 20 pixels:</p>
 		 *
 		 * <listing version="3.0">
-		 * var style:StyleSheet = new StyleSheet();
-		 * var heading:Object = new Object();
-		 * heading.fontWeight = "bold";
-		 * heading.color = "#FF0000";
+		 * textRenderer.leading = 20;</listing>
 		 *
-		 * var body:Object = new Object();
-		 * body.fontStyle = "italic";
-		 *
-		 * style.setStyle(".heading", heading);
-		 * style.setStyle("body", body);
-		 *
-		 * textRenderer.styleSheet = style;
-		 * textRenderer.htmlText = "<body><span class='heading'>Hello </span>World...</body>";</listing>
-		 *
-		 * @default null
-		 *
-		 * @see flash.text.StyleSheet
+		 * @default 0
 		 */
-		public function get styleSheet():StyleSheet
+		public function get leading():Number
 		{
-			return this._styleSheet;
+			return this._leading;
 		}
 
 		/**
 		 * @private
 		 */
-		public function set styleSheet(value:StyleSheet):void
+		public function set leading(value:Number):void
 		{
-			if(this._styleSheet == value)
+			if(this._leading == value)
 			{
 				return;
 			}
-			this._styleSheet = value;
+			this._leading = value;
 			this.invalidate(INVALIDATION_FLAG_STYLES);
 		}
 
 		/**
 		 * @private
 		 */
-		protected var _embedFonts:Boolean = false;
+		protected var _textAlign:String = TEXT_ALIGN_LEFT;
 
 		/**
-		 * Determines if the TextField should use an embedded font or not.
+		 * The alignment of the text. For justified text, see the
+		 * <code>textJustifier</code> property.
 		 *
-		 * <p>In the following example, the font is embedded:</p>
+		 * <p>In the following example, the leading is changed to 20 pixels:</p>
 		 *
 		 * <listing version="3.0">
-		 * textRenderer.embedFonts = true;</listing>
+		 * textRenderer.textAlign = TextBlockTextRenderer.TEXT_ALIGN_CENTER;</listing>
 		 *
-		 * @default false
+		 * @default TextBlockTextRenderer.TEXT_ALIGN_LEFT
+		 *
+		 * @see #TEXT_ALIGN_LEFT
+		 * @see #TEXT_ALIGN_CENTER
+		 * @see #TEXT_ALIGN_RIGHT
+		 * @see #textJustifier
 		 */
-		public function get embedFonts():Boolean
+		public function get textAlign():String
 		{
-			return this._embedFonts;
+			return this._textAlign;
 		}
 
 		/**
 		 * @private
 		 */
-		public function set embedFonts(value:Boolean):void
+		public function set textAlign(value:String):void
 		{
-			if(this._embedFonts == value)
+			if(this._textAlign == value)
 			{
 				return;
 			}
-			this._embedFonts = value;
+			this._textAlign = value;
 			this.invalidate(INVALIDATION_FLAG_STYLES);
 		}
 
@@ -339,40 +406,331 @@ package feathers.controls.text
 		 */
 		public function get baseline():Number
 		{
-			//2 is the gutter Flash Player adds
-			return 2 + this.textField.getLineMetrics(0).ascent;
+			if(this._textLines.length == 0)
+			{
+				return 0;
+			}
+			var line:TextLine = this._textLines[0];
+			return line.getBaselinePosition(TextBaseline.ROMAN);
 		}
 
 		/**
 		 * @private
 		 */
-		protected var _wordWrap:Boolean = false;
+		protected var _applyNonLinearFontScaling:Boolean = true;
 
 		/**
-		 * Determines if the TextField wraps text to the next line.
+		 * Specifies that you want to enhance screen appearance at the expense
+		 * of what-you-see-is-what-you-get (WYSIWYG) print fidelity.
 		 *
-		 * <p>In the following example, word wrap is enabled:</p>
+		 * <p>In the following example, this property is changed to false:</p>
 		 *
 		 * <listing version="3.0">
-		 * textRenderer.wordWrap = true;</listing>
+		 * textRenderer.applyNonLinearFontScaling = false;</listing>
 		 *
-		 * @default false
+		 * @default true
+		 *
+		 * @see flash.text.engine.TextBlock#applyNonLinearFontScaling
 		 */
-		public function get wordWrap():Boolean
+		public function get applyNonLinearFontScaling():Boolean
 		{
-			return this._wordWrap;
+			return this._applyNonLinearFontScaling;
 		}
 
 		/**
 		 * @private
 		 */
-		public function set wordWrap(value:Boolean):void
+		public function set applyNonLinearFontScaling(value:Boolean):void
 		{
-			if(this._wordWrap == value)
+			if(this._applyNonLinearFontScaling == value)
 			{
 				return;
 			}
-			this._wordWrap = value;
+			this._applyNonLinearFontScaling = value;
+			this.invalidate(INVALIDATION_FLAG_STYLES);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _baselineFontDescription:FontDescription;
+
+		/**
+		 * The font used to determine the baselines for all the lines created from the block, independent of their content.
+		 *
+		 * <p>In the following example, the baseline font description is changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.baselineFontDescription = new FontDescription( "Source Sans Pro", FontWeight.BOLD );</listing>
+		 *
+		 * @default null
+		 *
+		 * @see flash.text.engine.TextBlock#baselineFontDescription
+		 * @see #baselineFontSize
+		 */
+		public function get baselineFontDescription():FontDescription
+		{
+			return this._baselineFontDescription;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set baselineFontDescription(value:FontDescription):void
+		{
+			if(this._baselineFontDescription == value)
+			{
+				return;
+			}
+			this._baselineFontDescription = value;
+			this.invalidate(INVALIDATION_FLAG_STYLES);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _baselineFontSize:Number = 12;
+
+		/**
+		 * The font size used to calculate the baselines for the lines created
+		 * from the block.
+		 *
+		 * <p>In the following example, the baseline font size is changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.baselineFontSize = 20;</listing>
+		 *
+		 * @default 12
+		 *
+		 * @see flash.text.engine.TextBlock#baselineFontSize
+		 * @see #baselineFontDescription
+		 */
+		public function get baselineFontSize():Number
+		{
+			return this._baselineFontSize;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set baselineFontSize(value:Number):void
+		{
+			if(this._baselineFontSize == value)
+			{
+				return;
+			}
+			this._baselineFontSize = value;
+			this.invalidate(INVALIDATION_FLAG_STYLES);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _baselineZero:String = TextBaseline.ROMAN;
+
+		/**
+		 * Specifies which baseline is at y=0 for lines created from this block.
+		 *
+		 * <p>In the following example, the baseline zero is changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.baselineZero = TextBaseline.ASCENT;</listing>
+		 *
+		 * @default TextBaseline.ROMAN
+		 *
+		 * @see flash.text.engine.TextBlock#baselineZero
+		 * @see flash.text.engine.TextBaseline
+		 */
+		public function get baselineZero():String
+		{
+			return this._baselineZero;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set baselineZero(value:String):void
+		{
+			if(this._baselineZero == value)
+			{
+				return;
+			}
+			this._baselineZero = value;
+			this.invalidate(INVALIDATION_FLAG_STYLES);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _bidiLevel:int = 0;
+
+		/**
+		 * Specifies the bidirectional paragraph embedding level of the text
+		 * block.
+		 *
+		 * <p>In the following example, the bidi level is changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.bidiLevel = 1;</listing>
+		 *
+		 * @default 0
+		 *
+		 * @see flash.text.engine.TextBlock#bidiLevel
+		 */
+		public function get bidiLevel():int
+		{
+			return this._bidiLevel;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set bidiLevel(value:int):void
+		{
+			if(this._bidiLevel == value)
+			{
+				return;
+			}
+			this._bidiLevel = value;
+			this.invalidate(INVALIDATION_FLAG_STYLES);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _lineRotation:String = TextRotation.ROTATE_0;
+
+		/**
+		 * Rotates the text lines in the text block as a unit.
+		 *
+		 * <p>In the following example, the line rotation is changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.lineRotation = TextRotation.ROTATE_90;</listing>
+		 *
+		 * @default TextRotation.ROTATE_0
+		 *
+		 * @see flash.text.engine.TextBlock#lineRotation
+		 * @see flash.text.engine.TextRotation
+		 */
+		public function get lineRotation():String
+		{
+			return this._lineRotation;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set lineRotation(value:String):void
+		{
+			if(this._lineRotation == value)
+			{
+				return;
+			}
+			this._lineRotation = value;
+			this.invalidate(INVALIDATION_FLAG_STYLES);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _tabStops:Vector.<TabStop>;
+
+		/**
+		 * Specifies the tab stops for the text in the text block, in the form
+		 * of a <code>Vector</code> of <code>TabStop</code> objects.
+		 *
+		 * <p>In the following example, the tab stops changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.tabStops = new <TabStop>[ new TabStop( TabAlignment.CENTER ) ];</listing>
+		 *
+		 * @default null
+		 *
+		 * @see flash.text.engine.TextBlock#tabStops
+		 */
+		public function get tabStops():Vector.<TabStop>
+		{
+			return this._tabStops;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set tabStops(value:Vector.<TabStop>):void
+		{
+			if(this._tabStops == value)
+			{
+				return;
+			}
+			this._tabStops = value;
+			this.invalidate(INVALIDATION_FLAG_STYLES);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _textJustifier:TextJustifier = new SpaceJustifier();
+
+		/**
+		 * Specifies the <code>TextJustifier</code> to use during line creation.
+		 *
+		 * <p>In the following example, the text justifier is changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.textAlign = new SpaceJustifier( "en", LineJustification.ALL_BUT_LAST );</listing>
+		 *
+		 * @see flash.text.engine.TextBlock#textJustifier
+		 */
+		public function get textJustifier():TextJustifier
+		{
+			return this._textJustifier;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set textJustifier(value:TextJustifier):void
+		{
+			if(this._textJustifier == value)
+			{
+				return;
+			}
+			this._textJustifier = value;
+			this.invalidate(INVALIDATION_FLAG_STYLES);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _userData:*;
+
+		/**
+		 * Provides a way for the application to associate arbitrary data with
+		 * the text block.
+		 *
+		 * <p>In the following example, the user data is changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.userData = { author: "William Shakespeare", title: "Much Ado About Nothing" };</listing>
+		 *
+		 * @see flash.text.engine.TextBlock#userData
+		 */
+		public function get userData():*
+		{
+			return this._userData;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set userData(value:*):void
+		{
+			if(this._userData === value)
+			{
+				return;
+			}
+			this._userData = value;
 			this.invalidate(INVALIDATION_FLAG_STYLES);
 		}
 
@@ -405,360 +763,6 @@ package feathers.controls.text
 		public function set snapToPixels(value:Boolean):void
 		{
 			this._snapToPixels = value;
-		}
-
-		/**
-		 * @private
-		 */
-		private var _antiAliasType:String = AntiAliasType.ADVANCED;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, the anti-alias type is changed:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.antiAliasType = AntiAliasType.NORMAL;</listing>
-		 *
-		 * @default flash.text.AntiAliasType.ADVANCED
-		 *
-		 * @see flash.text.TextField#antiAliasType
-		 */
-		public function get antiAliasType():String
-		{
-			return this._antiAliasType;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set antiAliasType(value:String):void
-		{
-			if(this._antiAliasType == value)
-			{
-				return;
-			}
-			this._antiAliasType = value;
-			this.invalidate(INVALIDATION_FLAG_STYLES);
-		}
-
-		/**
-		 * @private
-		 */
-		private var _background:Boolean = false;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, the background is enabled:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.background = true;</listing>
-		 *
-		 * @default false
-		 *
-		 * @see flash.text.TextField#background
-		 * @see #backgroundColor
-		 */
-		public function get background():Boolean
-		{
-			return this._background;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set background(value:Boolean):void
-		{
-			if(this._background == value)
-			{
-				return;
-			}
-			this._background = value;
-			this.invalidate(INVALIDATION_FLAG_STYLES);
-		}
-
-		/**
-		 * @private
-		 */
-		private var _backgroundColor:uint = 0xffffff;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, the background color is changed:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.backgroundColor = 0xff000ff;</listing>
-		 *
-		 * @default 0xffffff
-		 *
-		 * @see flash.text.TextField#backgroundColor
-		 * @see #background
-		 */
-		public function get backgroundColor():uint
-		{
-			return this._backgroundColor;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set backgroundColor(value:uint):void
-		{
-			if(this._backgroundColor == value)
-			{
-				return;
-			}
-			this._backgroundColor = value;
-			this.invalidate(INVALIDATION_FLAG_STYLES);
-		}
-
-		/**
-		 * @private
-		 */
-		private var _border:Boolean = false;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, the border is enabled:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.border = true;</listing>
-		 *
-		 * @default false
-		 *
-		 * @see flash.text.TextField#border
-		 * @see #borderColor
-		 */
-		public function get border():Boolean
-		{
-			return this._border;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set border(value:Boolean):void
-		{
-			if(this._border == value)
-			{
-				return;
-			}
-			this._border = value;
-			this.invalidate(INVALIDATION_FLAG_STYLES);
-		}
-
-		/**
-		 * @private
-		 */
-		private var _borderColor:uint = 0x000000;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, the border color is changed:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.borderColor = 0xff00ff;</listing>
-		 *
-		 * @default 0x000000
-		 *
-		 * @see flash.text.TextField#borderColor
-		 * @see #border
-		 */
-		public function get borderColor():uint
-		{
-			return this._borderColor;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set borderColor(value:uint):void
-		{
-			if(this._borderColor == value)
-			{
-				return;
-			}
-			this._borderColor = value;
-			this.invalidate(INVALIDATION_FLAG_STYLES);
-		}
-
-		/**
-		 * @private
-		 */
-		private var _condenseWhite:Boolean = false;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, whitespace is condensed:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.condenseWhite = true;</listing>
-		 *
-		 * @default false
-		 *
-		 * @see flash.text.TextField#condenseWhite
-		 */
-		public function get condenseWhite():Boolean
-		{
-			return this._condenseWhite;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set condenseWhite(value:Boolean):void
-		{
-			if(this._condenseWhite == value)
-			{
-				return;
-			}
-			this._condenseWhite = value;
-			this.invalidate(INVALIDATION_FLAG_STYLES);
-		}
-
-		/**
-		 * @private
-		 */
-		private var _displayAsPassword:Boolean = false;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, the text is displayed as a password:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.displayAsPassword = true;</listing>
-		 *
-		 * @default false
-		 *
-		 * @see flash.text.TextField#displayAsPassword
-		 */
-		public function get displayAsPassword():Boolean
-		{
-			return this._displayAsPassword;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set displayAsPassword(value:Boolean):void
-		{
-			if(this._displayAsPassword == value)
-			{
-				return;
-			}
-			this._displayAsPassword = value;
-			this.invalidate(INVALIDATION_FLAG_STYLES);
-		}
-
-		/**
-		 * @private
-		 */
-		private var _gridFitType:String = GridFitType.PIXEL;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, the grid fit type is changed:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.gridFitType = GridFitType.SUBPIXEL;</listing>
-		 *
-		 * @default flash.text.GridFitType.PIXEL
-		 *
-		 * @see flash.text.TextField#gridFitType
-		 */
-		public function get gridFitType():String
-		{
-			return this._gridFitType;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set gridFitType(value:String):void
-		{
-			if(this._gridFitType == value)
-			{
-				return;
-			}
-			this._gridFitType = value;
-			this.invalidate(INVALIDATION_FLAG_STYLES);
-		}
-
-		/**
-		 * @private
-		 */
-		private var _sharpness:Number = 0;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, the sharpness is changed:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.sharpness = 200;</listing>
-		 *
-		 * @default 0
-		 *
-		 * @see flash.text.TextField#sharpness
-		 */
-		public function get sharpness():Number
-		{
-			return this._sharpness;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set sharpness(value:Number):void
-		{
-			if(this._sharpness == value)
-			{
-				return;
-			}
-			this._sharpness = value;
-			this.invalidate(INVALIDATION_FLAG_DATA);
-		}
-
-		/**
-		 * @private
-		 */
-		private var _thickness:Number = 0;
-
-		/**
-		 * Same as the TextField property with the same name.
-		 *
-		 * <p>In the following example, the thickness is changed:</p>
-		 *
-		 * <listing version="3.0">
-		 * textRenderer.thickness = 100;</listing>
-		 *
-		 * @default 0
-		 *
-		 * @see flash.text.TextField#thickness
-		 */
-		public function get thickness():Number
-		{
-			return this._thickness;
-		}
-
-		/**
-		 * @private
-		 */
-		public function set thickness(value:Number):void
-		{
-			if(this._thickness == value)
-			{
-				return;
-			}
-			this._thickness = value;
-			this.invalidate(INVALIDATION_FLAG_DATA);
 		}
 
 		/**
@@ -806,8 +810,8 @@ package feathers.controls.text
 		protected var _nativeFilters:Array;
 
 		/**
-		 * Native filters to pass to the <code>flash.text.TextField</code>
-		 * before creating the texture snapshot.
+		 * Native filters to pass to the <code>flash.text.engine.TextLine</code>
+		 * instances before creating the texture snapshot.
 		 *
 		 * <p>In the following example, the native filters are changed:</p>
 		 *
@@ -874,7 +878,7 @@ package feathers.controls.text
 				result = new Point();
 			}
 
-			if(!this.textField)
+			if(!this.textBlock)
 			{
 				result.x = result.y = 0;
 				return result;
@@ -901,12 +905,17 @@ package feathers.controls.text
 		 */
 		override protected function initialize():void
 		{
-			if(!this.textField)
+			if(!this.textBlock)
 			{
-				this.textField = new TextField();
-				this.textField.mouseEnabled = this.textField.mouseWheelEnabled = false;
-				this.textField.selectable = false;
-				this.textField.multiline = true;
+				this.textBlock = new TextBlock();
+			}
+			if(!this._textLineContainer)
+			{
+				this._textLineContainer = new Sprite();
+			}
+			if(!this._measurementTextLineContainer)
+			{
+				this._measurementTextLineContainer = new Sprite();
 			}
 		}
 
@@ -933,49 +942,37 @@ package feathers.controls.text
 			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
 			const stateInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STATE);
 
-			if(stylesInvalid)
-			{
-				this.textField.antiAliasType = this._antiAliasType;
-				this.textField.background = this._background;
-				this.textField.backgroundColor = this._backgroundColor;
-				this.textField.border = this._border;
-				this.textField.borderColor = this._borderColor;
-				this.textField.condenseWhite = this._condenseWhite;
-				this.textField.displayAsPassword = this._displayAsPassword;
-				this.textField.gridFitType = this._gridFitType;
-				this.textField.sharpness = this._sharpness;
-				this.textField.thickness = this._thickness;
-				this.textField.filters = this._nativeFilters;
-			}
-
 			if(dataInvalid || stylesInvalid || stateInvalid)
 			{
-				this.textField.wordWrap = this._wordWrap;
-				this.textField.embedFonts = this._embedFonts;
-				if(this._styleSheet)
+				if(this._textElement)
 				{
-					this.textField.styleSheet = this._styleSheet;
-				}
-				else
-				{
-					this.textField.styleSheet = null;
-					if(!this._isEnabled && this._disabledTextFormat)
+					if(!this._isEnabled && this._disabledElementFormat)
 					{
-						this.textField.defaultTextFormat = this._disabledTextFormat;
+						this._textElement.elementFormat = this._disabledElementFormat;
 					}
-					else if(this._textFormat)
+					else if(this._elementFormat)
 					{
-						this.textField.defaultTextFormat = this._textFormat;
+						this._textElement.elementFormat = this._elementFormat;
 					}
 				}
-				if(this._isHTML)
-				{
-					this.textField.htmlText = this._text;
-				}
-				else
-				{
-					this.textField.text = this._text;
-				}
+			}
+
+			if(stylesInvalid)
+			{
+				this.textBlock.applyNonLinearFontScaling = this._applyNonLinearFontScaling;
+				this.textBlock.baselineFontDescription = this._baselineFontDescription;
+				this.textBlock.baselineFontSize = this._baselineFontSize;
+				this.textBlock.baselineZero = this._baselineZero;
+				this.textBlock.bidiLevel = this._bidiLevel;
+				this.textBlock.lineRotation = this._lineRotation;
+				this.textBlock.tabStops = this._tabStops;
+				this.textBlock.textJustifier = this._textJustifier;
+				this.textBlock.userData = this._userData;
+			}
+
+			if(dataInvalid)
+			{
+				this.textBlock.content = this._content;
 			}
 		}
 
@@ -989,58 +986,31 @@ package feathers.controls.text
 				result = new Point();
 			}
 
-			const needsWidth:Boolean = isNaN(this.explicitWidth);
-			const needsHeight:Boolean = isNaN(this.explicitHeight);
-
-			this.textField.autoSize = TextFieldAutoSize.LEFT;
-			this.textField.wordWrap = false;
-
+			var needsWidth:Boolean = isNaN(this.explicitWidth);
+			var needsHeight:Boolean = isNaN(this.explicitHeight);
 			var newWidth:Number = this.explicitWidth;
+			var newHeight:Number = this.explicitHeight;
 			if(needsWidth)
 			{
-				//yes, this value is never used. this is a workaround for a bug
-				//in AIR for iOS where getting the value for textField.width the
-				//first time results in an incorrect value, but if you query it
-				//again, for some reason, it reports the correct width value.
-				var hackWorkaround:Number = this.textField.width;
-
-				//we use Math.ceil() as another workaround. even though we're
-				//setting width to exact same value reported here when we turn
-				//on word wrap in a moment, sometimes the last character moves
-				//to the next line. Bumping up to a whole pixel seems to help.
-				newWidth = Math.ceil(this.textField.width);
-				if(newWidth < this._minWidth)
+				newWidth = this._maxWidth;
+				if(newWidth > MAX_TEXT_LINE_WIDTH)
 				{
-					newWidth = this._minWidth;
-				}
-				else if(newWidth > this._maxWidth)
-				{
-					newWidth = this._maxWidth;
+					newWidth = MAX_TEXT_LINE_WIDTH;
 				}
 			}
-
-			this.textField.width = newWidth;
-			this.textField.wordWrap = this._wordWrap;
-			var newHeight:Number = this.explicitHeight;
 			if(needsHeight)
 			{
-				newHeight = Math.ceil(this.textField.height);
-				if(newHeight < this._minHeight)
-				{
-					newHeight = this._minHeight;
-				}
-				else if(newHeight > this._maxHeight)
-				{
-					newHeight = this._maxHeight;
-				}
+				newHeight = this._maxHeight;
 			}
-
-			this.textField.autoSize = TextFieldAutoSize.NONE;
-
-			//put the width and height back just in case we measured without
-			//a full validation
-			this.textField.width = this.actualWidth;
-			this.textField.height = this.actualHeight;
+			this.refreshTextLines(this._measurementTextLines, this._measurementTextLineContainer, newWidth, newHeight);
+			if(needsWidth)
+			{
+				newWidth = this._measurementTextLineContainer.width;
+			}
+			if(needsHeight)
+			{
+				newHeight = this._measurementTextLineContainer.height;
+			}
 
 			result.x = newWidth;
 			result.y = newHeight;
@@ -1058,8 +1028,6 @@ package feathers.controls.text
 
 			if(sizeInvalid)
 			{
-				this.textField.width = this.actualWidth;
-				this.textField.height = this.actualHeight;
 				var rectangleSnapshotWidth:Number = this.actualWidth * Starling.contentScaleFactor;
 				if(rectangleSnapshotWidth > this._maxTextureDimensions)
 				{
@@ -1086,21 +1054,19 @@ package feathers.controls.text
 			//changing maxWidth or something for measurement, we check against
 			//the previous actualWidth/Height used for the snapshot.
 			if(stylesInvalid || dataInvalid || this._needsNewTexture ||
-				this.actualWidth != this._previousTextFieldWidth ||
-				this.actualHeight != this._previousTextFieldHeight)
+				this.actualWidth != this._previousContentWidth ||
+				this.actualHeight != this._previousContentHeight)
 			{
-				this._previousTextFieldWidth = this.actualWidth;
-				this._previousTextFieldHeight = this.actualHeight;
-				const hasText:Boolean = this._text.length > 0;
-				if(hasText)
+				this._previousContentWidth = this.actualWidth;
+				this._previousContentHeight = this.actualHeight;
+				if(this._content)
 				{
-					//we need to wait a frame for the TextField to render
-					//properly. sometimes two, and this is a known issue.
-					this.addEventListener(Event.ENTER_FRAME, enterFrameHandler);
+					this.refreshTextLines(this._textLines, this._textLineContainer, this.actualWidth, this.actualHeight);
+					this.refreshSnapshot();
 				}
 				if(this.textSnapshot)
 				{
-					this.textSnapshot.visible = hasText;
+					this.textSnapshot.visible = this._content !== null;
 				}
 			}
 		}
@@ -1188,7 +1154,7 @@ package feathers.controls.text
 					}
 					HELPER_MATRIX.tx = -xPosition;
 					HELPER_MATRIX.ty = -yPosition;
-					bitmapData.draw(this.textField, HELPER_MATRIX);
+					bitmapData.draw(this._textLineContainer, HELPER_MATRIX);
 					var newTexture:Texture;
 					if(!this.textSnapshot || this._needsNewTexture)
 					{
@@ -1298,12 +1264,114 @@ package feathers.controls.text
 				this.textSnapshots = null;
 			}
 
-			this._previousTextFieldWidth = NaN;
-			this._previousTextFieldHeight = NaN;
+			this._previousContentWidth = NaN;
+			this._previousContentHeight = NaN;
 
 			this._needsNewTexture = false;
 			this._snapshotWidth = 0;
 			this._snapshotHeight = 0;
+		}
+
+		/**
+		 * @private
+		 */
+		protected function refreshTextLines(textLines:Vector.<TextLine>, textLineParent:DisplayObjectContainer, width:Number, height:Number):void
+		{
+			var textLineCache:Vector.<TextLine>;
+			var yPosition:Number = 0;
+			var lineCount:int = textLines.length;
+			var lastLine:TextLine;
+			for(var i:int = 0; i < lineCount; i++)
+			{
+				var line:TextLine = textLines[i];
+				if(line.validity === TextLineValidity.VALID)
+				{
+					line.filters = this._nativeFilters;
+					lastLine = line;
+					continue;
+				}
+				else
+				{
+					line = lastLine;
+					if(lastLine)
+					{
+						yPosition = lastLine.y;
+						//we're using this value in the next loop
+						lastLine = null;
+					}
+					textLineCache = textLines.splice(i, lineCount - i);
+					break;
+				}
+			}
+
+			var pushIndex:int = textLines.length;
+			var inactiveTextLineCount:int = textLineCache ? textLineCache.length : 0;
+			while(true)
+			{
+				if(inactiveTextLineCount > 0)
+				{
+					var inactiveLine:TextLine = textLineCache[0];
+					line = this.textBlock.recreateTextLine(inactiveLine, line, width);
+					if(line)
+					{
+						textLineCache.shift();
+						inactiveTextLineCount--;
+					}
+				}
+				else
+				{
+					line = this.textBlock.createTextLine(line, width);
+					if(line)
+					{
+						textLineParent.addChild(line);
+					}
+				}
+				if(!line)
+				{
+					//end of text
+					break;
+				}
+				if(pushIndex > 0)
+				{
+					yPosition += this._leading;
+				}
+				yPosition += line.ascent;
+				line.y = yPosition;
+				yPosition += line.descent;
+				line.filters = this._nativeFilters;
+				textLines[pushIndex] = line;
+				pushIndex++;
+			}
+
+			lineCount = textLines.length;
+			for(i = 0; i < lineCount; i++)
+			{
+				line = textLines[i];
+				if(this._textAlign == TEXT_ALIGN_CENTER)
+				{
+					line.x = (width - line.width) / 2;
+				}
+				else if(this._textAlign == TEXT_ALIGN_RIGHT)
+				{
+					line.x = width - line.width;
+				}
+				else
+				{
+					line.x = 0;
+				}
+			}
+
+			if(!textLineCache)
+			{
+				return;
+			}
+
+			inactiveTextLineCount = textLineCache.length;
+			for(i = 0; i < inactiveTextLineCount; i++)
+			{
+				line = textLineCache.shift();
+				textLineParent.removeChild(line);
+			}
 		}
 
 		/**
@@ -1320,20 +1388,9 @@ package feathers.controls.text
 		 */
 		protected function removedFromStageHandler(event:Event):void
 		{
-			this.removeEventListener(Event.ENTER_FRAME, enterFrameHandler);
-
 			//avoid the need to call dispose(). we'll create a new snapshot
 			//when the renderer is added to stage again.
 			this.disposeContent();
-		}
-
-		/**
-		 * @private
-		 */
-		protected function enterFrameHandler(event:Event):void
-		{
-			this.removeEventListener(Event.ENTER_FRAME, enterFrameHandler);
-			this.refreshSnapshot();
 		}
 	}
 }

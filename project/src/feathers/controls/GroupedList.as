@@ -127,7 +127,7 @@ package feathers.controls
 		 *
 		 * <p>An alternate name should always be added to a component's
 		 * <code>nameList</code> before the component is added to the stage for
-		 * the first time.</p>
+		 * the first time. If it is added later, it will be ignored.</p>
 		 *
 		 * <p>In the following example, the inset style is applied to a grouped
 		 * list:</p>
@@ -287,6 +287,20 @@ package feathers.controls
 		public static const SCROLL_BAR_DISPLAY_MODE_NONE:String = "none";
 
 		/**
+		 * The vertical scroll bar will be positioned on the right.
+		 *
+		 * @see feathers.controls.Scroller#verticalScrollBarPosition
+		 */
+		public static const VERTICAL_SCROLL_BAR_POSITION_RIGHT:String = "right";
+
+		/**
+		 * The vertical scroll bar will be positioned on the left.
+		 *
+		 * @see feathers.controls.Scroller#verticalScrollBarPosition
+		 */
+		public static const VERTICAL_SCROLL_BAR_POSITION_LEFT:String = "left";
+
+		/**
 		 * @copy feathers.controls.Scroller#INTERACTION_MODE_TOUCH
 		 *
 		 * @see feathers.controls.Scroller#interactionMode
@@ -374,7 +388,10 @@ package feathers.controls
 		protected var _dataProvider:HierarchicalCollection;
 
 		/**
-		 * The collection of data displayed by the list.
+		 * The collection of data displayed by the list. Changing this property
+		 * to a new value is considered a drastic change to the list's data, so
+		 * the horizontal and vertical scroll positions will be reset, and the
+		 * list's selection will be cleared.
 		 *
 		 * <p>The following example passes in a data provider and tells the item
 		 * renderer how to interpret the data:</p>
@@ -471,6 +488,9 @@ package feathers.controls
 			//the data is probably completely different
 			this.horizontalScrollPosition = 0;
 			this.verticalScrollPosition = 0;
+
+			//clear the selection for the same reason
+			this.setSelectedLocation(-1, -1);
 
 			this.invalidate(INVALIDATION_FLAG_DATA);
 		}
@@ -608,7 +628,6 @@ package feathers.controls
 			{
 				return null;
 			}
-
 			return this._dataProvider.getItemAt(this._selectedGroupIndex, this._selectedItemIndex);
 		}
 
@@ -617,7 +636,12 @@ package feathers.controls
 		 */
 		public function set selectedItem(value:Object):void
 		{
-			const result:Vector.<int> = this._dataProvider.getItemLocation(value);
+			if(!this._dataProvider)
+			{
+				this.setSelectedLocation(-1, -1);
+				return;
+			}
+			var result:Vector.<int> = this._dataProvider.getItemLocation(value);
 			if(result.length == 2)
 			{
 				this.setSelectedLocation(result[0], result[1]);
@@ -848,10 +872,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>Setting properties in a <code>itemRendererFactory</code> function instead
 		 * of using <code>itemRendererProperties</code> will result in better
@@ -1503,10 +1526,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>Setting properties in a <code>headerRendererFactory</code> function instead
 		 * of using <code>headerRendererProperties</code> will result in better
@@ -1717,10 +1739,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>Setting properties in a <code>footerRendererFactory</code> function instead
 		 * of using <code>footerRendererProperties</code> will result in better
@@ -1980,6 +2001,10 @@ package feathers.controls
 		 */
 		override public function dispose():void
 		{
+			//clearing selection now so that the data provider setter won't
+			//cause a selection change that triggers events.
+			this._selectedGroupIndex = -1;
+			this._selectedItemIndex = -1;
 			this.dataProvider = null;
 			super.dispose();
 		}

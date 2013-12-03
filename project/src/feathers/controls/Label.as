@@ -24,6 +24,50 @@ package feathers.controls
 	public class Label extends FeathersControl
 	{
 		/**
+		 * An alternate name to use with <code>Label</code> to allow a theme to
+		 * give it a larger style meant for headings. If a theme does not provide
+		 * a skin for the heading style, the theme will automatically fall back
+		 * to using the default label skin.
+		 *
+		 * <p>An alternate name should always be added to a component's
+		 * <code>nameList</code> before the component is added to the stage for
+		 * the first time. If it is added later, it will be ignored.</p>
+		 *
+		 * <p>In the following example, the heading style is applied to a label:</p>
+		 *
+		 * <listing version="3.0">
+		 * var label:Label = new Label();
+		 * label.text = "Very Important Heading";
+		 * label.nameList.add( Label.ALTERNATE_NAME_HEADING );
+		 * this.addChild( label );</listing>
+		 *
+		 * @see feathers.core.IFeathersControl#nameList
+		 */
+		public static const ALTERNATE_NAME_HEADING:String = "feathers-heading-label";
+
+		/**
+		 * An alternate name to use with <code>Label</code> to allow a theme to
+		 * give it a smaller style meant for less-important details. If a theme
+		 * does not provide a skin for the detail style, the theme will
+		 * automatically fall back to using the default label skin.
+		 *
+		 * <p>An alternate name should always be added to a component's
+		 * <code>nameList</code> before the component is added to the stage for
+		 * the first time. If it is added later, it will be ignored.</p>
+		 *
+		 * <p>In the following example, the detail style is applied to a label:</p>
+		 *
+		 * <listing version="3.0">
+		 * var label:Label = new Label();
+		 * label.text = "Less important, detailed text";
+		 * label.nameList.add( Label.ALTERNATE_NAME_DETAIL );
+		 * this.addChild( label );</listing>
+		 *
+		 * @see feathers.core.IFeathersControl#nameList
+		 */
+		public static const ALTERNATE_NAME_DETAIL:String = "feathers-detail-label";
+
+		/**
 		 * @private
 		 */
 		private static const HELPER_POINT:Point = new Point();
@@ -155,10 +199,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>Setting properties in a <code>textRendererFactory</code> function
 		 * instead of using <code>textRendererProperties</code> will result in

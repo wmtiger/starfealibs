@@ -10,6 +10,7 @@ package feathers.controls.renderers
 	import feathers.controls.GroupedList;
 	import feathers.controls.ImageLoader;
 	import feathers.core.FeathersControl;
+	import feathers.core.IFeathersControl;
 	import feathers.core.ITextRenderer;
 	import feathers.core.PropertyProxy;
 
@@ -45,6 +46,14 @@ package feathers.controls.renderers
 		public static const HORIZONTAL_ALIGN_RIGHT:String = "right";
 
 		/**
+		 * The content will be justified horizontally, filling the entire width
+		 * of the renderer, minus padding.
+		 *
+		 * @see #horizontalAlign
+		 */
+		public static const HORIZONTAL_ALIGN_JUSTIFY:String = "justify";
+
+		/**
 		 * The content will be aligned vertically to the top edge of the renderer.
 		 *
 		 * @see #verticalAlign
@@ -64,6 +73,14 @@ package feathers.controls.renderers
 		 * @see #verticalAlign
 		 */
 		public static const VERTICAL_ALIGN_BOTTOM:String = "bottom";
+
+		/**
+		 * The content will be justified vertically, filling the entire height
+		 * of the renderer, minus padding.
+		 *
+		 * @see #verticalAlign
+		 */
+		public static const VERTICAL_ALIGN_JUSTIFY:String = "justify";
 
 		/**
 		 * The default value added to the <code>nameList</code> of the content
@@ -209,7 +226,7 @@ package feathers.controls.renderers
 		 */
 		protected var _horizontalAlign:String = HORIZONTAL_ALIGN_LEFT;
 
-		[Inspectable(type="String",enumeration="left,center,right")]
+		[Inspectable(type="String",enumeration="left,center,right,justify")]
 		/**
 		 * The location where the renderer's content is aligned horizontally
 		 * (on the x-axis).
@@ -225,6 +242,7 @@ package feathers.controls.renderers
 		 * @see #HORIZONTAL_ALIGN_LEFT
 		 * @see #HORIZONTAL_ALIGN_CENTER
 		 * @see #HORIZONTAL_ALIGN_RIGHT
+		 * @see #HORIZONTAL_ALIGN_JUSTIFY
 		 */
 		public function get horizontalAlign():String
 		{
@@ -249,7 +267,7 @@ package feathers.controls.renderers
 		 */
 		protected var _verticalAlign:String = VERTICAL_ALIGN_MIDDLE;
 
-		[Inspectable(type="String",enumeration="top,middle,bottom")]
+		[Inspectable(type="String",enumeration="top,middle,bottom,justify")]
 		/**
 		 * The location where the renderer's content is aligned vertically (on
 		 * the y-axis).
@@ -265,6 +283,7 @@ package feathers.controls.renderers
 		 * @see #VERTICAL_ALIGN_TOP
 		 * @see #VERTICAL_ALIGN_MIDDLE
 		 * @see #VERTICAL_ALIGN_BOTTOM
+		 * @see #VERTICAL_ALIGN_JUSTIFY
 		 */
 		public function get verticalAlign():String
 		{
@@ -761,10 +780,9 @@ package feathers.controls.renderers
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>In the following example, a custom content label properties are
 		 * customized:</p>
@@ -1260,13 +1278,26 @@ package feathers.controls.renderers
 			{
 				return false;
 			}
-			if(this.content is FeathersControl)
-			{
-				FeathersControl(this.content).validate();
-			}
 			if(!this.content)
 			{
 				return this.setSizeInternal(0, 0, false);
+			}
+			if(this.contentLabel)
+			{
+				//special case for label to allow word wrap
+				this.contentLabel.maxWidth = (isNaN(this.explicitWidth) ? this._maxWidth : this.explicitWidth) - this._paddingLeft - this._paddingRight;
+			}
+			if(this._horizontalAlign == HORIZONTAL_ALIGN_JUSTIFY)
+			{
+				this.content.width = this.explicitWidth - this._paddingLeft - this._paddingRight;
+			}
+			if(this._verticalAlign == VERTICAL_ALIGN_JUSTIFY)
+			{
+				this.content.height = this.explicitHeight - this._paddingTop - this._paddingBottom;
+			}
+			if(this.content is IFeathersControl)
+			{
+				IFeathersControl(this.content).validate();
 			}
 			var newWidth:Number = this.explicitWidth;
 			var newHeight:Number = this.explicitHeight;
@@ -1416,6 +1447,10 @@ package feathers.controls.renderers
 				return;
 			}
 
+			if(this.contentLabel)
+			{
+				this.contentLabel.maxWidth = this.actualWidth - this._paddingLeft - this._paddingRight;
+			}
 			switch(this._horizontalAlign)
 			{
 				case HORIZONTAL_ALIGN_CENTER:
@@ -1426,6 +1461,12 @@ package feathers.controls.renderers
 				case HORIZONTAL_ALIGN_RIGHT:
 				{
 					this.content.x = this.actualWidth - this._paddingRight - this.content.width;
+					break;
+				}
+				case HORIZONTAL_ALIGN_JUSTIFY:
+				{
+					this.content.x = this._paddingLeft;
+					this.content.width = this.actualWidth - this._paddingLeft - this._paddingRight;
 					break;
 				}
 				default: //left
@@ -1444,6 +1485,12 @@ package feathers.controls.renderers
 				case VERTICAL_ALIGN_BOTTOM:
 				{
 					this.content.y = this.actualHeight - this._paddingBottom - this.content.height;
+					break;
+				}
+				case VERTICAL_ALIGN_JUSTIFY:
+				{
+					this.content.y = this._paddingTop;
+					this.content.height = this.actualHeight - this._paddingTop - this._paddingBottom;
 					break;
 				}
 				default: //middle

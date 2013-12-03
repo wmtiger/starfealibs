@@ -8,6 +8,7 @@ accordance with the terms of the accompanying license agreement.
 package feathers.controls
 {
 	import feathers.core.FeathersControl;
+	import feathers.core.IFeathersControl;
 	import feathers.core.IFocusDisplayObject;
 	import feathers.core.ITextRenderer;
 	import feathers.core.IToggle;
@@ -1263,10 +1264,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>Setting properties in a <code>onTrackFactory</code> function
 		 * instead of using <code>onTrackProperties</code> will result in
@@ -1435,10 +1435,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>Setting properties in a <code>offTrackFactory</code> function
 		 * instead of using <code>offTrackProperties</code> will result in
@@ -1605,10 +1604,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>Setting properties in a <code>thumbFactory</code> function instead
 		 * of using <code>thumbProperties</code> will result in better
@@ -1937,7 +1935,7 @@ package feathers.controls
 			}
 			this.offTextRenderer = ITextRenderer(offLabelFactory());
 			this.offTextRenderer.nameList.add(this.offLabelName);
-			if(this.offTextRenderer is FeathersControl)
+			if(this.offTextRenderer is IFeathersControl)
 			{
 				FeathersControl(this.offTextRenderer).clipRect = new Rectangle();
 			}
@@ -1954,7 +1952,7 @@ package feathers.controls
 			}
 			this.onTextRenderer = ITextRenderer(onLabelFactory());
 			this.onTextRenderer.nameList.add(this.onLabelName);
-			if(this.onTextRenderer is FeathersControl)
+			if(this.onTextRenderer is IFeathersControl)
 			{
 				FeathersControl(this.onTextRenderer).clipRect = new Rectangle();
 			}
@@ -1981,7 +1979,7 @@ package feathers.controls
 				labelHeight = Math.max(this.onTextRenderer.baseline, this.offTextRenderer.baseline);
 			}
 
-			if(this.onTextRenderer is FeathersControl)
+			if(this.onTextRenderer is IFeathersControl)
 			{
 				var clipRect:Rectangle = FeathersControl(this.onTextRenderer).clipRect;
 				clipRect.width = maxLabelWidth;
@@ -1991,7 +1989,7 @@ package feathers.controls
 
 			this.onTextRenderer.y = (this.actualHeight - labelHeight) / 2;
 
-			if(this.offTextRenderer is FeathersControl)
+			if(this.offTextRenderer is IFeathersControl)
 			{
 				clipRect = FeathersControl(this.offTextRenderer).clipRect;
 				clipRect.width = maxLabelWidth;
@@ -2013,7 +2011,7 @@ package feathers.controls
 			const thumbOffset:Number = this.thumb.x - this._paddingLeft;
 
 			var onScrollOffset:Number = maxLabelWidth - thumbOffset - (maxLabelWidth - this.onTextRenderer.width) / 2;
-			if(this.onTextRenderer is FeathersControl)
+			if(this.onTextRenderer is IFeathersControl)
 			{
 				const displayOnLabelRenderer:FeathersControl = FeathersControl(this.onTextRenderer);
 				var currentClipRect:Rectangle = displayOnLabelRenderer.clipRect;
@@ -2023,7 +2021,7 @@ package feathers.controls
 			this.onTextRenderer.x = this._paddingLeft - onScrollOffset;
 
 			var offScrollOffset:Number = -thumbOffset - (maxLabelWidth - this.offTextRenderer.width) / 2;
-			if(this.offTextRenderer is FeathersControl)
+			if(this.offTextRenderer is IFeathersControl)
 			{
 				const displayOffLabelRenderer:FeathersControl = FeathersControl(this.offTextRenderer);
 				currentClipRect = displayOffLabelRenderer.clipRect;

@@ -128,7 +128,7 @@ package starling.core
      * 
      *  <strong>Sharing a 3D Context</strong>
      * 
-     *  <p>Per default, Starling handles the Stage3D context independently. If you want to combine
+     *  <p>Per default, Starling handles the Stage3D context itself. If you want to combine
      *  Starling with another Stage3D engine, however, this may not be what you want. In this case,
      *  you can make use of the <code>shareContext</code> property:</p> 
      *  
@@ -153,7 +153,7 @@ package starling.core
     public class Starling extends EventDispatcher
     {
         /** The version of the Starling framework. */
-        public static const VERSION:String = "1.4";
+        public static const VERSION:String = "1.4.1";
         
         /** The key for the shader programs stored in 'contextData' */
         private static const PROGRAM_DATA_NAME:String = "Starling.programs"; 
@@ -179,6 +179,7 @@ package starling.core
         private var mContext:Context3D;
         private var mStarted:Boolean;
         private var mRendering:Boolean;
+        private var mContextValid:Boolean;
         
         private var mViewPort:Rectangle;
         private var mPreviousViewPort:Rectangle;
@@ -374,6 +375,9 @@ package starling.core
          *  and processes touches. */
         public function advanceTime(passedTime:Number):void
         {
+            if (!mContextValid)
+                return;
+            
             makeCurrent();
             
             mTouchProcessor.advanceTime(passedTime);
@@ -385,7 +389,7 @@ package starling.core
          *  it is presented. This can be avoided by enabling <code>shareContext</code>.*/ 
         public function render():void
         {
-            if (!contextValid)
+            if (!mContextValid)
                 return;
             
             makeCurrent();
@@ -560,6 +564,8 @@ package starling.core
         
         private function onEnterFrame(event:Event):void
         {
+            mContextValid = (mContext && mContext.driverInfo != "Disposed");
+            
             // On mobile, the native display list is only updated on stage3D draw calls. 
             // Thus, we render even when Starling is paused.
             
@@ -587,6 +593,8 @@ package starling.core
         
         private function onResize(event:Event):void
         {
+            makeCurrent();
+            
             var stage:flash.display.Stage = event.target as flash.display.Stage; 
             mStage.dispatchEvent(new ResizeEvent(Event.RESIZE, stage.stageWidth, stage.stageHeight));
         }
@@ -681,15 +689,28 @@ package starling.core
         
         // program management
         
-        /** Registers a vertex- and fragment-program under a certain name. If the name was already
-         *  used, the previous program is overwritten. */
-        public function registerProgram(name:String, vertexProgram:ByteArray, 
-                                        fragmentProgram:ByteArray):Program3D
+        /** Registers a compiled shader-program under a certain name.
+         *  If the name was already used, the previous program is overwritten. */
+        public function registerProgram(name:String, vertexShader:ByteArray,
+                                        fragmentShader:ByteArray):Program3D
         {
             deleteProgram(name);
             
             var program:Program3D = mContext.createProgram();
-            program.upload(vertexProgram, fragmentProgram);
+            program.upload(vertexShader, fragmentShader);
+            programs[name] = program;
+            
+            return program;
+        }
+        
+        /** Compiles a shader-program and registers it under a certain name.
+         *  If the name was already used, the previous program is overwritten. */
+        public function registerProgramFromSource(name:String, vertexShader:String,
+                                                  fragmentShader:String):Program3D
+        {
+            deleteProgram(name);
+            
+            var program:Program3D = RenderSupport.assembleAgal(vertexShader, fragmentShader);
             programs[name] = program;
             
             return program;
@@ -721,12 +742,6 @@ package starling.core
         private function get programs():Dictionary { return contextData[PROGRAM_DATA_NAME]; }
         
         // properties
-        
-        /** Indicates if a context is available and non-disposed. */
-        private function get contextValid():Boolean
-        {
-            return (mContext && mContext.driverInfo != "Disposed");
-        }
         
         /** Indicates if this Starling instance is started. */
         public function get isStarted():Boolean { return mStarted; }
@@ -780,7 +795,7 @@ package starling.core
             if (mAntiAliasing != value)
             {
                 mAntiAliasing = value;
-                if (contextValid) updateViewPort(true);
+                if (mContextValid) updateViewPort(true);
             }
         }
         
@@ -883,7 +898,7 @@ package starling.core
             if (mSupportHighResolutions != value)
             {
                 mSupportHighResolutions = value;
-                if (contextValid) updateViewPort(true);
+                if (mContextValid) updateViewPort(true);
             }
         }
         

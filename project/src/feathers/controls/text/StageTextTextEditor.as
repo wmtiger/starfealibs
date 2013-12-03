@@ -813,8 +813,14 @@ package feathers.controls.text
 				{
 					stageTextViewPort = new Rectangle();
 				}
-				stageTextViewPort.x = Math.round(starlingViewPort.x + (HELPER_POINT.x * Starling.contentScaleFactor));
-				stageTextViewPort.y = Math.round(starlingViewPort.y + (HELPER_POINT.y * Starling.contentScaleFactor));
+				var nativeScaleFactor:Number = 1;
+				if(Starling.current.supportHighResolutions)
+				{
+					nativeScaleFactor = Starling.current.nativeStage.contentsScaleFactor;
+				}
+				var scaleFactor:Number = Starling.contentScaleFactor / nativeScaleFactor;
+				stageTextViewPort.x = Math.round(starlingViewPort.x + (HELPER_POINT.x * scaleFactor));
+				stageTextViewPort.y = Math.round(starlingViewPort.y + (HELPER_POINT.y * scaleFactor));
 				this.stageText.viewPort = stageTextViewPort;
 			}
 
@@ -824,11 +830,6 @@ package feathers.controls.text
 				this.textSnapshot.y = Math.round(HELPER_MATRIX.ty) - HELPER_MATRIX.ty;
 			}
 
-			//theoretically, this will ensure that the StageText is set visible
-			//or invisible immediately after the snapshot changes visibility in
-			//the rendered graphics. the OS might take longer to do the change,
-			//though.
-			this.stageText.visible = this.textSnapshot ? !this.textSnapshot.visible : this._stageTextHasFocus;
 			super.render(support, parentAlpha);
 		}
 
@@ -891,6 +892,7 @@ package feathers.controls.text
 				{
 					this._pendingSelectionStartIndex = this._pendingSelectionEndIndex = -1;
 				}
+				this.stageText.visible = true;
 				this.stageText.assignFocus();
 			}
 			else
@@ -955,7 +957,14 @@ package feathers.controls.text
 				return result;
 			}
 
-			this.commit();
+
+			const stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
+			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
+
+			if(stylesInvalid || dataInvalid)
+			{
+				this.refreshMeasureProperties();
+			}
 
 			result = this.measure(result);
 
@@ -985,6 +994,11 @@ package feathers.controls.text
 			const stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
 			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
 
+			if(stylesInvalid || dataInvalid)
+			{
+				this.refreshMeasureProperties();
+			}
+
 			const oldIgnoreStageTextChanges:Boolean = this._ignoreStageTextChanges;
 			this._ignoreStageTextChanges = true;
 			if(stylesInvalid)
@@ -1003,7 +1017,6 @@ package feathers.controls.text
 					}
 					this.stageText.text = this._text;
 				}
-				this._measureTextField.text = this.stageText.text;
 			}
 			this._ignoreStageTextChanges = oldIgnoreStageTextChanges;
 
@@ -1084,6 +1097,10 @@ package feathers.controls.text
 				{
 					this.textSnapshot.visible = !this._stageTextHasFocus;
 					this.textSnapshot.alpha = hasText ? 1 : 0;
+					if(!this._stageTextHasFocus)
+					{
+						this.stageText.visible = false;
+					}
 				}
 			}
 
@@ -1122,6 +1139,37 @@ package feathers.controls.text
 		/**
 		 * @private
 		 */
+		protected function refreshMeasureProperties():void
+		{
+			this._measureTextField.displayAsPassword = this._displayAsPassword;
+			this._measureTextField.maxChars = this._maxChars;
+			this._measureTextField.restrict = this._restrict;
+			this._measureTextField.multiline = this._measureTextField.wordWrap = this._multiline;
+
+			const format:TextFormat = this._measureTextField.defaultTextFormat;
+			format.color = this._color;
+			format.font = this._fontFamily;
+			format.italic = this._fontPosture == FontPosture.ITALIC;
+			format.size = this._fontSize;
+			format.bold = this._fontWeight == FontWeight.BOLD;
+			var alignValue:String = this._textAlign;
+			if(alignValue == TextFormatAlign.START)
+			{
+				alignValue = TextFormatAlign.LEFT;
+			}
+			else if(alignValue == TextFormatAlign.END)
+			{
+				alignValue = TextFormatAlign.RIGHT;
+			}
+			format.align = alignValue;
+			this._measureTextField.defaultTextFormat = format;
+			this._measureTextField.setTextFormat(format);
+			this._measureTextField.text = this._text;
+		}
+
+		/**
+		 * @private
+		 */
 		protected function refreshStageTextProperties():void
 		{
 			if(this.stageText.multiline != this._multiline)
@@ -1148,7 +1196,9 @@ package feathers.controls.text
 			{
 				smallerGlobalScale = globalScaleY;
 			}
-			this.stageText.fontSize = this._fontSize * Starling.contentScaleFactor * smallerGlobalScale;
+			//for some reason, we don't need to account for the native scale factor here
+			var scaleFactor:Number = Starling.contentScaleFactor;
+			this.stageText.fontSize = this._fontSize * scaleFactor * smallerGlobalScale;
 
 			this.stageText.fontWeight = this._fontWeight;
 			this.stageText.locale = this._locale;
@@ -1157,30 +1207,6 @@ package feathers.controls.text
 			this.stageText.returnKeyLabel = this._returnKeyLabel;
 			this.stageText.softKeyboardType = this._softKeyboardType;
 			this.stageText.textAlign = this._textAlign;
-
-			this._measureTextField.displayAsPassword = this._displayAsPassword;
-			this._measureTextField.maxChars = this._maxChars;
-			this._measureTextField.restrict = this._restrict;
-			this._measureTextField.multiline = this._measureTextField.wordWrap = this._multiline;
-
-			const format:TextFormat = this._measureTextField.defaultTextFormat;
-			format.color = this._color;
-			format.font = this._fontFamily;
-			format.italic = this._fontPosture == FontPosture.ITALIC;
-			format.size = this._fontSize;
-			format.bold = this._fontWeight == FontWeight.BOLD;
-			var alignValue:String = this._textAlign;
-			if(alignValue == TextFormatAlign.START)
-			{
-				alignValue = TextFormatAlign.LEFT;
-			}
-			else if(alignValue == TextFormatAlign.END)
-			{
-				alignValue = TextFormatAlign.RIGHT;
-			}
-			format.align = alignValue;
-			this._measureTextField.defaultTextFormat = format;
-			this._measureTextField.setTextFormat(format);
 		}
 
 		/**
@@ -1209,6 +1235,15 @@ package feathers.controls.text
 		protected function texture_onRestore():void
 		{
 			this.refreshSnapshot();
+			if(this.textSnapshot)
+			{
+				this.textSnapshot.visible = !this._stageTextHasFocus;
+				this.textSnapshot.alpha = this._text.length > 0 ? 1 : 0;
+				if(!this._stageTextHasFocus)
+				{
+					this.stageText.visible = false;
+				}
+			}
 		}
 
 		/**
@@ -1257,7 +1292,6 @@ package feathers.controls.text
 			this.textSnapshot.scaleX = 1 / matrixToScaleX(HELPER_MATRIX);
 			this.textSnapshot.scaleY = 1 / matrixToScaleY(HELPER_MATRIX);
 			bitmapData.dispose();
-			this.textSnapshot.visible = !this._stageTextHasFocus;
 			this._needsNewTexture = false;
 		}
 
@@ -1284,14 +1318,20 @@ package feathers.controls.text
 			MatrixUtil.transformCoords(HELPER_MATRIX, 0, 0, HELPER_POINT);
 			this._oldGlobalX = HELPER_POINT.x;
 			this._oldGlobalY = HELPER_POINT.y;
-			stageTextViewPort.x = Math.round(starlingViewPort.x + HELPER_POINT.x * Starling.contentScaleFactor);
-			stageTextViewPort.y = Math.round(starlingViewPort.y + HELPER_POINT.y * Starling.contentScaleFactor);
-			var viewPortWidth:Number = Math.round(this.actualWidth * Starling.contentScaleFactor * globalScaleX);
+			var nativeScaleFactor:Number = 1;
+			if(Starling.current.supportHighResolutions)
+			{
+				nativeScaleFactor = Starling.current.nativeStage.contentsScaleFactor;
+			}
+			var scaleFactor:Number = Starling.contentScaleFactor / nativeScaleFactor;
+			stageTextViewPort.x = Math.round(starlingViewPort.x + HELPER_POINT.x * scaleFactor);
+			stageTextViewPort.y = Math.round(starlingViewPort.y + HELPER_POINT.y * scaleFactor);
+			var viewPortWidth:Number = Math.round(this.actualWidth * scaleFactor * globalScaleX);
 			if(viewPortWidth < 1 || isNaN(viewPortWidth))
 			{
 				viewPortWidth = 1;
 			}
-			var viewPortHeight:Number = Math.round(this.actualHeight * Starling.contentScaleFactor * globalScaleY);
+			var viewPortHeight:Number = Math.round(this.actualHeight * scaleFactor * globalScaleY);
 			if(viewPortHeight < 1 || isNaN(viewPortHeight))
 			{
 				viewPortHeight = 1;

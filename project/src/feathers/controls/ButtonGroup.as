@@ -10,7 +10,12 @@ package feathers.controls
 	import feathers.core.FeathersControl;
 	import feathers.core.PropertyProxy;
 	import feathers.data.ListCollection;
+	import feathers.layout.HorizontalLayout;
+	import feathers.layout.LayoutBoundsResult;
+	import feathers.layout.VerticalLayout;
+	import feathers.layout.ViewPortBounds;
 
+	import starling.display.DisplayObject;
 	import starling.events.Event;
 
 	/**
@@ -131,9 +136,7 @@ package feathers.controls
 		/**
 		 * If the direction is vertical, each button will fill the entire
 		 * width of the button group, and if the direction is horizontal, the
-		 * width of the button group will be divided so that each button will
-		 * each have an equal width, and the total width of all buttons will
-		 * fill the entire space.
+		 * alignment will behave the same as <code>HORIZONTAL_ALIGN_LEFT</code>.
 		 *
 		 * @see #horizontalAlign
 		 * @see #direction
@@ -165,9 +168,7 @@ package feathers.controls
 		/**
 		 * If the direction is horizontal, each button will fill the entire
 		 * height of the button group, and if the direction is vertical, the
-		 * height of the button group will be divided so that each button will
-		 * each have an equal height, and the total height of all buttons will
-		 * fill the entire space.
+		 * alignment will behave the same as <code>VERTICAL_ALIGN_TOP</code>.
 		 *
 		 * @see #verticalAlign
 		 * @see #direction
@@ -251,6 +252,11 @@ package feathers.controls
 		 * @private
 		 */
 		protected var inactiveLastButton:Button;
+
+		/**
+		 * @private
+		 */
+		protected var _layoutItems:Vector.<DisplayObject> = new <DisplayObject>[];
 
 		/**
 		 * @private
@@ -341,6 +347,26 @@ package feathers.controls
 			}
 			this.invalidate(INVALIDATION_FLAG_DATA);
 		}
+
+		/**
+		 * @private
+		 */
+		protected var verticalLayout:VerticalLayout;
+
+		/**
+		 * @private
+		 */
+		protected var horizontalLayout:HorizontalLayout;
+
+		/**
+		 * @private
+		 */
+		protected var _viewPortBounds:ViewPortBounds = new ViewPortBounds();
+
+		/**
+		 * @private
+		 */
+		protected var _layoutResult:LayoutBoundsResult = new LayoutBoundsResult();
 
 		/**
 		 * @private
@@ -457,6 +483,44 @@ package feathers.controls
 				return;
 			}
 			this._verticalAlign = value;
+			this.invalidate(INVALIDATION_FLAG_STYLES);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _distributeButtonSizes:Boolean = false;
+
+		/**
+		 * If <code>true</code>, the buttons will be equally sized in the
+		 * direction of the layout. In other words, if the button group is
+		 * horizontal, each button will have the same width, and if the button
+		 * group is vertical, each button will have the same height. If
+		 * <code>false</code>, the buttons will be sized to their ideal
+		 * dimensions.
+		 *
+		 * <p>The following example distributes the button sizes:</p>
+		 *
+		 * <listing version="3.0">
+		 * group.distributeButtonSizes = true;</listing>
+		 *
+		 * @default false
+		 */
+		public function get distributeButtonSizes():Boolean
+		{
+			return this._distributeButtonSizes;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set distributeButtonSizes(value:Boolean):void
+		{
+			if(this._distributeButtonSizes == value)
+			{
+				return;
+			}
+			this._distributeButtonSizes = value;
 			this.invalidate(INVALIDATION_FLAG_STYLES);
 		}
 
@@ -1098,10 +1162,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>The following example sets some properties on all of the buttons:</p>
 		 *
@@ -1198,12 +1261,12 @@ package feathers.controls
 				this.commitEnabled();
 			}
 
-			sizeInvalid = this.autoSizeIfNeeded() || sizeInvalid;
-
-			if(sizeInvalid || dataInvalid || buttonFactoryInvalid || stylesInvalid)
+			if(stylesInvalid)
 			{
-				this.layoutButtons();
+				this.refreshLayoutStyles();
 			}
+
+			this.layoutButtons();
 		}
 
 		/**
@@ -1234,6 +1297,57 @@ package feathers.controls
 						button[propertyName] = propertyValue;
 					}
 				}
+			}
+		}
+
+		/**
+		 * @private
+		 */
+		protected function refreshLayoutStyles():void
+		{
+			if(this._direction == DIRECTION_VERTICAL)
+			{
+				if(this.horizontalLayout)
+				{
+					this.horizontalLayout = null;
+				}
+				if(!this.verticalLayout)
+				{
+					this.verticalLayout = new VerticalLayout();
+					this.verticalLayout.useVirtualLayout = false;
+				}
+				this.verticalLayout.distributeHeights = this._distributeButtonSizes;
+				this.verticalLayout.horizontalAlign = this._horizontalAlign;
+				this.verticalLayout.verticalAlign = (this._verticalAlign == VERTICAL_ALIGN_JUSTIFY) ? VERTICAL_ALIGN_TOP : this._verticalAlign;
+				this.verticalLayout.gap = this._gap;
+				this.verticalLayout.firstGap = this._firstGap;
+				this.verticalLayout.lastGap = this._lastGap;
+				this.verticalLayout.paddingTop = this._paddingTop;
+				this.verticalLayout.paddingRight = this._paddingRight;
+				this.verticalLayout.paddingBottom = this._paddingBottom;
+				this.verticalLayout.paddingLeft = this._paddingLeft;
+			}
+			else //horizontal
+			{
+				if(this.verticalLayout)
+				{
+					this.verticalLayout = null;
+				}
+				if(!this.horizontalLayout)
+				{
+					this.horizontalLayout = new HorizontalLayout();
+					this.horizontalLayout.useVirtualLayout = false;
+				}
+				this.horizontalLayout.distributeWidths = this._distributeButtonSizes;
+				this.horizontalLayout.horizontalAlign = (this._horizontalAlign == HORIZONTAL_ALIGN_JUSTIFY) ? HORIZONTAL_ALIGN_LEFT : this._horizontalAlign;
+				this.horizontalLayout.verticalAlign = this._verticalAlign;
+				this.horizontalLayout.gap = this._gap;
+				this.horizontalLayout.firstGap = this._firstGap;
+				this.horizontalLayout.lastGap = this._lastGap;
+				this.horizontalLayout.paddingTop = this._paddingTop;
+				this.horizontalLayout.paddingRight = this._paddingRight;
+				this.horizontalLayout.paddingBottom = this._paddingBottom;
+				this.horizontalLayout.paddingLeft = this._paddingLeft;
 			}
 		}
 
@@ -1287,6 +1401,7 @@ package feathers.controls
 			this.inactiveButtons = this.activeButtons;
 			this.activeButtons = temp;
 			this.activeButtons.length = 0;
+			this._layoutItems.length = 0;
 			temp = null;
 			if(isFactoryInvalid)
 			{
@@ -1309,6 +1424,7 @@ package feathers.controls
 			this.activeFirstButton = null;
 			this.activeLastButton = null;
 
+			var pushIndex:int = 0;
 			const itemCount:int = this._dataProvider ? this._dataProvider.length : 0;
 			const lastItemIndex:int = itemCount - 1;
 			for(var i:int = 0; i < itemCount; i++)
@@ -1326,7 +1442,9 @@ package feathers.controls
 				{
 					button = this.createButton(item);
 				}
-				this.activeButtons.push(button);
+				this.activeButtons[pushIndex] = button;
+				this._layoutItems[pushIndex] = button;
+				pushIndex++;
 			}
 			this.clearInactiveButtons();
 		}
@@ -1459,262 +1577,29 @@ package feathers.controls
 		}
 
 		/**
-		 * If the component's dimensions have not been set explicitly, it will
-		 * measure its content and determine an ideal size for itself. If the
-		 * <code>explicitWidth</code> or <code>explicitHeight</code> member
-		 * variables are set, those value will be used without additional
-		 * measurement. If one is set, but not the other, the dimension with the
-		 * explicit value will not be measured, but the other non-explicit
-		 * dimension will still need measurement.
-		 *
-		 * <p>Calls <code>setSizeInternal()</code> to set up the
-		 * <code>actualWidth</code> and <code>actualHeight</code> member
-		 * variables used for layout.</p>
-		 *
-		 * <p>Meant for internal use, and subclasses may override this function
-		 * with a custom implementation.</p>
-		 */
-		protected function autoSizeIfNeeded():Boolean
-		{
-			const needsWidth:Boolean = isNaN(this.explicitWidth);
-			const needsHeight:Boolean = isNaN(this.explicitHeight);
-			if(!needsWidth && !needsHeight)
-			{
-				return false;
-			}
-
-			var newWidth:Number = this.explicitWidth;
-			var newHeight:Number = this.explicitHeight;
-			if(needsWidth)
-			{
-				newWidth = 0;
-				for each(var button:Button in this.activeButtons)
-				{
-					button.setSize(NaN, NaN);
-					button.validate();
-					newWidth = Math.max(button.width, newWidth);
-				}
-				if(this._direction == DIRECTION_HORIZONTAL)
-				{
-					var buttonCount:int = this.activeButtons.length;
-					newWidth = buttonCount * (newWidth + this._gap) - this._gap;
-					if(!isNaN(this._firstGap) && buttonCount > 1)
-					{
-						newWidth -= this._gap;
-						newWidth += this._firstGap;
-					}
-					if(!isNaN(this._lastGap) && buttonCount > 2)
-					{
-						newWidth -= this._gap;
-						newWidth += this._lastGap;
-					}
-				}
-				newWidth += this._paddingLeft + this._paddingRight;
-			}
-
-			if(needsHeight)
-			{
-				newHeight = 0;
-				for each(button in this.activeButtons)
-				{
-					button.validate();
-					newHeight = Math.max(button.height, newHeight);
-				}
-				if(this._direction != DIRECTION_HORIZONTAL)
-				{
-					buttonCount = this.activeButtons.length;
-					newHeight = buttonCount * (newHeight + this._gap) - this._gap;
-					if(!isNaN(this._firstGap) && buttonCount > 1)
-					{
-						newHeight -= this._gap;
-						newHeight += this._firstGap;
-					}
-					if(!isNaN(this._lastGap) && buttonCount > 2)
-					{
-						newHeight -= this._gap;
-						newHeight += this._lastGap;
-					}
-				}
-				newHeight += this._paddingTop + this._paddingBottom;
-			}
-			return this.setSizeInternal(newWidth, newHeight, false);
-		}
-
-		/**
 		 * @private
 		 */
 		protected function layoutButtons():void
 		{
-			const hasFirstGap:Boolean = !isNaN(this._firstGap);
-			const hasLastGap:Boolean = !isNaN(this._lastGap);
-			const buttonCount:int = this.activeButtons.length;
-			const secondToLastIndex:int = buttonCount - 2;
-			if(this._direction == DIRECTION_VERTICAL)
+			this._viewPortBounds.x = 0;
+			this._viewPortBounds.y = 0;
+			this._viewPortBounds.scrollX = 0;
+			this._viewPortBounds.scrollY = 0;
+			this._viewPortBounds.explicitWidth = this.explicitWidth;
+			this._viewPortBounds.explicitHeight = this.explicitHeight;
+			this._viewPortBounds.minWidth = this._minWidth;
+			this._viewPortBounds.minHeight = this._minHeight;
+			this._viewPortBounds.maxWidth = this._maxWidth;
+			this._viewPortBounds.maxHeight = this._maxHeight;
+			if(this.verticalLayout)
 			{
-				var maxButtonSize:Number = this.actualHeight - this._paddingTop - this._paddingBottom;
-				var oppositeSize:Number = this.actualWidth - this._paddingLeft - this._paddingRight;
+				this.verticalLayout.layout(this._layoutItems, this._viewPortBounds, this._layoutResult);
 			}
-			else
+			else if(this.horizontalLayout)
 			{
-				maxButtonSize = this.actualWidth - this._paddingLeft - this._paddingRight;
-				oppositeSize = this.actualHeight - this._paddingTop - this._paddingBottom;
+				this.horizontalLayout.layout(this._layoutItems, this._viewPortBounds, this._layoutResult);
 			}
-			maxButtonSize -= (this._gap * (buttonCount - 1));
-			if(hasFirstGap)
-			{
-				maxButtonSize += this._gap - this._firstGap;
-			}
-			if(hasLastGap)
-			{
-				maxButtonSize += this._gap - this._lastGap;
-			}
-			maxButtonSize /= buttonCount;
-
-			var position:Number = this._direction == DIRECTION_VERTICAL ? this._paddingTop : this._paddingLeft;
-			if((this._horizontalAlign == HORIZONTAL_ALIGN_JUSTIFY && this._direction == DIRECTION_HORIZONTAL) ||
-				(this._verticalAlign == VERTICAL_ALIGN_JUSTIFY && this._direction == DIRECTION_VERTICAL))
-			{
-				var buttonSize:Number = maxButtonSize;
-			}
-			else
-			{
-				buttonSize = 0;
-				for(var i:int = 0; i < buttonCount; i++)
-				{
-					var button:Button = this.activeButtons[i];
-					button.validate();
-					if(this._direction == DIRECTION_VERTICAL)
-					{
-						var currentButtonSize:Number = button.height;
-						if(!isNaN(currentButtonSize) && currentButtonSize > buttonSize)
-						{
-							buttonSize = currentButtonSize;
-						}
-					}
-					else //horizontal
-					{
-						currentButtonSize = button.width;
-						if(!isNaN(currentButtonSize) && currentButtonSize > buttonSize)
-						{
-							buttonSize = currentButtonSize;
-						}
-					}
-				}
-				if(buttonSize > maxButtonSize)
-				{
-					buttonSize = maxButtonSize;
-				}
-				var totalContentSize:Number = (buttonSize + this._gap) * buttonCount - this._gap;
-				if(hasFirstGap)
-				{
-					totalContentSize = totalContentSize - this._gap + this._firstGap;
-				}
-				if(hasLastGap)
-				{
-					totalContentSize = totalContentSize - this._gap + this._lastGap;
-				}
-				if(this._direction == DIRECTION_VERTICAL)
-				{
-					if(this._verticalAlign == VERTICAL_ALIGN_MIDDLE)
-					{
-						position = this._paddingTop + (this.actualHeight - this._paddingTop - this._paddingBottom - totalContentSize) / 2;
-					}
-					else if(this._verticalAlign == VERTICAL_ALIGN_BOTTOM)
-					{
-						position = this.actualHeight - this._paddingBottom - totalContentSize;
-					}
-				}
-				else //horizontal
-				{
-					if(this._horizontalAlign == HORIZONTAL_ALIGN_CENTER)
-					{
-						position = this._paddingLeft + (this.actualWidth - this._paddingLeft - this._paddingRight - totalContentSize) / 2;
-					}
-					else if(this._horizontalAlign == HORIZONTAL_ALIGN_RIGHT)
-					{
-						position = this.actualWidth - this._paddingRight - totalContentSize;
-					}
-				}
-			}
-			for(i = 0; i < buttonCount; i++)
-			{
-				button = this.activeButtons[i];
-				if(this._direction == DIRECTION_VERTICAL)
-				{
-					button.height = buttonSize;
-					button.y = position;
-					button.validate();
-					switch(this._horizontalAlign)
-					{
-						case HORIZONTAL_ALIGN_CENTER:
-						{
-							button.x = this._paddingLeft + (oppositeSize - button.width) / 2;
-							break;
-						}
-						case HORIZONTAL_ALIGN_RIGHT:
-						{
-							button.x = this._paddingLeft + oppositeSize - button.width;
-							break;
-						}
-						case HORIZONTAL_ALIGN_LEFT:
-						{
-							button.x = this._paddingLeft;
-							break;
-						}
-						default: //justify
-						{
-							button.x = this._paddingLeft;
-							button.width = oppositeSize;
-							break;
-						}
-					}
-					position += buttonSize;
-				}
-				else //horizontal
-				{
-					button.x = position;
-					button.width = buttonSize;
-					button.validate();
-					switch(this._verticalAlign)
-					{
-						case VERTICAL_ALIGN_MIDDLE:
-						{
-							button.y = this._paddingTop + (oppositeSize - button.height) / 2;
-							break;
-						}
-						case VERTICAL_ALIGN_BOTTOM:
-						{
-							button.y = this._paddingTop + oppositeSize - button.height;
-							break;
-						}
-						case VERTICAL_ALIGN_TOP:
-						{
-							button.y = this._paddingTop;
-							break;
-						}
-						default: //justify
-						{
-							button.y = this._paddingTop;
-							button.height = oppositeSize;
-							break;
-						}
-					}
-					position += buttonSize;
-				}
-
-				if(hasFirstGap && i == 0)
-				{
-					position += this._firstGap;
-				}
-				else if(hasLastGap && i == secondToLastIndex)
-				{
-					position += this._lastGap;
-				}
-				else
-				{
-					position += this._gap;
-				}
-			}
+			this.setSizeInternal(this._layoutResult.contentWidth, this._layoutResult.contentHeight, false);
 		}
 
 		/**

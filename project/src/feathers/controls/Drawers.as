@@ -83,6 +83,15 @@ package feathers.controls
 	 * wants to display the slide out the <code>List</code> that is used as
 	 * the left drawer.</p>
 	 *
+	 * <p><strong>Beta Component:</strong> This is a new component, and its APIs
+	 * may need some changes between now and the next version of Feathers to
+	 * account for overlooked requirements or other issues. Upgrading to future
+	 * versions of Feathers may involve manual changes to your code that uses
+	 * this component. The
+	 * <a href="http://wiki.starling-framework.org/feathers/deprecation-policy">Feathers deprecation policy</a>
+	 * will not go into effect until this component's status is upgraded from
+	 * beta to stable.</p>
+	 *
 	 * @see http://wiki.starling-framework.org/feathers/drawers
 	 */
 	public class Drawers extends FeathersControl
@@ -1227,18 +1236,18 @@ package feathers.controls
 		/**
 		 * @private
 		 */
-		protected var _openGesture:String = OPEN_GESTURE_NONE;
+		protected var _openGesture:String = OPEN_GESTURE_DRAG_CONTENT_EDGE;
 
 		/**
 		 * An optional touch gesture used to open a drawer.
 		 *
-		 * <p>In the following example, the drawers are opened by dragging the
-		 * nearest edge of the content:</p>
+		 * <p>In the following example, the drawers are opened by dragging
+		 * anywhere inside the content:</p>
 		 *
 		 * <listing version="3.0">
-		 * drawers.openGesture = Drawers.OPEN_GESTURE_CONTENT_EDGE;</listing>
+		 * drawers.openGesture = Drawers.OPEN_GESTURE_DRAG_CONTENT;</listing>
 		 *
-		 * @default Drawers.OPEN_GESTURE_NONE
+		 * @default Drawers.OPEN_GESTURE_DRAG_CONTENT_EDGE
 		 *
 		 * @see #OPEN_GESTURE_NONE
 		 * @see #OPEN_GESTURE_DRAG_CONTENT
@@ -1329,9 +1338,9 @@ package feathers.controls
 		 * <p>In the following example, the open gesture edge size customized:</p>
 		 *
 		 * <listing version="3.0">
-		 * scroller.openGestureEdgeSize = ;</listing>
+		 * scroller.openGestureEdgeSize = 0.25;</listing>
 		 *
-		 * @default
+		 * @default 0.1
 		 */
 		public function get openGestureEdgeSize():Number
 		{
@@ -1708,7 +1717,12 @@ package feathers.controls
 				}
 				return result;
 			}
-			return null;
+			//we want to register touches in our hitArea as a last resort
+			if(forTouch && (!this.visible || !this.touchable))
+			{
+				return null;
+			}
+			return this._hitArea.contains(localPoint.x, localPoint.y) ? this : null;
 		}
 
 		/**
@@ -1830,10 +1844,16 @@ package feathers.controls
 		{
 			var sizeInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SIZE);
 			var dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
+			var layoutInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_LAYOUT);
 
 			if(dataInvalid)
 			{
 				this.refreshCurrentEventTarget();
+			}
+
+			if(sizeInvalid || layoutInvalid)
+			{
+				this.refreshDrawerStates();
 			}
 
 			sizeInvalid = this.autoSizeIfNeeded() || sizeInvalid;
@@ -2067,11 +2087,12 @@ package feathers.controls
 
 			if(this._rightDrawer)
 			{
-				this._rightDrawer.x = this.actualWidth - rightDrawerWidth;
+				var rightDrawerX:Number = this.actualWidth - rightDrawerWidth;
 				var rightDrawerY:Number = 0;
 				var rightDrawerHeight:Number = this.actualHeight;
 				if(isRightDrawerDocked)
 				{
+					rightDrawerX = this._content.x + this._content.width;
 					if(isTopDrawerDocked)
 					{
 						rightDrawerHeight -= topDrawerHeight;
@@ -2082,6 +2103,7 @@ package feathers.controls
 					}
 					rightDrawerY = this._content.y;
 				}
+				this._rightDrawer.x = rightDrawerX;
 				this._rightDrawer.y = rightDrawerY;
 				this._rightDrawer.height = rightDrawerHeight;
 				this._rightDrawer.visible = isRightDrawerOpen || isRightDrawerDocked;
@@ -2096,12 +2118,17 @@ package feathers.controls
 			if(this._bottomDrawer)
 			{
 				var bottomDrawerX:Number = 0;
-				if(isBottomDrawerDocked && !isLeftDrawerDocked)
+				var bottomDrawerY:Number = this.actualHeight - bottomDrawerHeight;
+				if(isBottomDrawerDocked)
 				{
-					bottomDrawerX = this._content.x;
+					if(!isLeftDrawerDocked)
+					{
+						bottomDrawerX = this._content.x;
+					}
+					bottomDrawerY = this._content.y + this._content.height;
 				}
 				this._bottomDrawer.x = bottomDrawerX;
-				this._bottomDrawer.y = this.actualHeight - bottomDrawerHeight;
+				this._bottomDrawer.y = bottomDrawerY;
 				this._bottomDrawer.width = this.actualWidth;
 				this._bottomDrawer.visible = isBottomDrawerOpen || isBottomDrawerDocked;
 
@@ -2412,6 +2439,29 @@ package feathers.controls
 		/**
 		 * @private
 		 */
+		protected function refreshDrawerStates():void
+		{
+			if(this.isTopDrawerDocked)
+			{
+				this._isTopDrawerOpen = false;
+			}
+			if(this.isRightDrawerDocked)
+			{
+				this._isRightDrawerOpen = false;
+			}
+			if(this.isBottomDrawerDocked)
+			{
+				this._isBottomDrawerOpen = false;
+			}
+			if(this.isLeftDrawerDocked)
+			{
+				this._isLeftDrawerOpen = false;
+			}
+		}
+
+		/**
+		 * @private
+		 */
 		protected function handleTapToClose(touch:Touch):void
 		{
 			touch.getLocation(this.stage, HELPER_POINT);
@@ -2513,22 +2563,15 @@ package feathers.controls
 					}
 				}
 			}
-			else //a drawer is open, let's only work with touches over the content
+			else if(touch.target != this && !touch.isTouching(this._content) &&
+				!(this.isTopDrawerDocked && touch.isTouching(this._topDrawer)) &&
+				!(this.isRightDrawerDocked && touch.isTouching(this._rightDrawer)) &&
+				!(this.isBottomDrawerDocked && touch.isTouching(this._bottomDrawer)) &&
+				!(this.isLeftDrawerDocked && touch.isTouching(this._leftDrawer)))
 			{
-				//not testing for touch because we just want to know if we're
-				//over the content or one of its children.
-				var hitTarget:DisplayObject = this.hitTest(touch.getLocation(this), false);
-				if(this._content is DisplayObjectContainer)
-				{
-					if(!DisplayObjectContainer(this._content).contains(hitTarget))
-					{
-						return;
-					}
-				}
-				else if(this._content != hitTarget)
-				{
-					return;
-				}
+				//a drawer is open, let's only work with touches over the
+				//content or other drawers that are docked
+				return;
 			}
 
 			this.touchPointID = touch.id;
@@ -2962,6 +3005,7 @@ package feathers.controls
 			}
 			if(isRightDrawerDocked)
 			{
+				this._rightDrawer.x = contentX + this._content.width;
 				this._rightDrawer.y = contentY;
 			}
 			if(isBottomDrawerDocked)
@@ -2974,6 +3018,7 @@ package feathers.controls
 				{
 					this._bottomDrawer.x = contentX;
 				}
+				this._bottomDrawer.y = contentY + this._content.height;
 			}
 			if(isLeftDrawerDocked)
 			{
@@ -3149,22 +3194,6 @@ package feathers.controls
 		 */
 		protected function stage_resizeHandler(event:ResizeEvent):void
 		{
-			if(this.isTopDrawerDocked)
-			{
-				this._isTopDrawerOpen = false;
-			}
-			if(this.isRightDrawerDocked)
-			{
-				this._isRightDrawerOpen = false;
-			}
-			if(this.isBottomDrawerDocked)
-			{
-				this._isBottomDrawerOpen = false;
-			}
-			if(this.isLeftDrawerDocked)
-			{
-				this._isLeftDrawerOpen = false;
-			}
 			this.invalidate(INVALIDATION_FLAG_SIZE);
 		}
 

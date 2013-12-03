@@ -16,7 +16,6 @@ package feathers.controls
 	import feathers.layout.LayoutBoundsResult;
 	import feathers.layout.ViewPortBounds;
 
-	import flash.geom.Point;
 	import flash.geom.Rectangle;
 
 	import starling.display.DisplayObject;
@@ -44,6 +43,15 @@ package feathers.controls
 	 * var noButton:Button = new Button();
 	 * noButton.label = "No";
 	 * group.addChild( noButton );</listing>
+	 *
+	 * <p><strong>Beta Component:</strong> This is a new component, and its APIs
+	 * may need some changes between now and the next version of Feathers to
+	 * account for overlooked requirements or other issues. Upgrading to future
+	 * versions of Feathers may involve manual changes to your code that uses
+	 * this component. The
+	 * <a href="http://wiki.starling-framework.org/feathers/deprecation-policy">Feathers deprecation policy</a>
+	 * will not go into effect until this component's status is upgraded from
+	 * beta to stable.</p>
 	 *
 	 * @see http://wiki.starling-framework.org/feathers/layout-group
 	 * @see feathers.controls.ScrollContainer
@@ -231,7 +239,25 @@ package feathers.controls
 			{
 				child.addEventListener(FeathersEventType.LAYOUT_DATA_CHANGE, child_layoutDataChangeHandler);
 			}
-			this.items.splice(index, 0, child);
+			var oldIndex:int = this.items.indexOf(child);
+			if(oldIndex == index)
+			{
+				return child;
+			}
+			if(oldIndex >= 0)
+			{
+				this.items.splice(oldIndex, 1);
+			}
+			var itemCount:int = this.items.length;
+			if(index == itemCount)
+			{
+				//faster than splice because it avoids gc
+				this.items[index] = child;
+			}
+			else
+			{
+				this.items.splice(index, 0, child);
+			}
 			this.invalidate(INVALIDATION_FLAG_LAYOUT);
 			return super.addChildAt(child, index);
 		}
@@ -253,6 +279,49 @@ package feathers.controls
 			this.items.splice(index, 1);
 			this.invalidate(INVALIDATION_FLAG_LAYOUT);
 			return child;
+		}
+
+		/**
+		 * @private
+		 */
+		override public function setChildIndex(child:DisplayObject, index:int):void
+		{
+			super.setChildIndex(child, index);
+			var oldIndex:int = this.items.indexOf(child);
+			if(oldIndex == index)
+			{
+				return;
+			}
+
+			//the super function already checks if oldIndex < 0, and throws an
+			//appropriate error, so no need to do it again!
+
+			this.items.splice(oldIndex, 1);
+			this.items.splice(index, 0, child);
+			this.invalidate(INVALIDATION_FLAG_LAYOUT);
+		}
+
+		/**
+		 * @private
+		 */
+		override public function swapChildrenAt(index1:int, index2:int):void
+		{
+			super.swapChildrenAt(index1, index2)
+			var child1:DisplayObject = this.items[index1];
+			var child2:DisplayObject = this.items[index2];
+			this.items[index1] = child2;
+			this.items[index2] = child1;
+			this.invalidate(INVALIDATION_FLAG_LAYOUT);
+		}
+
+		/**
+		 * @private
+		 */
+		override public function sortChildren(compareFunction:Function):void
+		{
+			super.sortChildren(compareFunction);
+			this.items.sort(compareFunction);
+			this.invalidate(INVALIDATION_FLAG_LAYOUT);
 		}
 
 		/**

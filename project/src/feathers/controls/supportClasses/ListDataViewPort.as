@@ -24,7 +24,6 @@ package feathers.controls.supportClasses
 	import feathers.layout.ViewPortBounds;
 
 	import flash.errors.IllegalOperationError;
-
 	import flash.geom.Point;
 	import flash.utils.Dictionary;
 
@@ -863,6 +862,9 @@ package feathers.controls.supportClasses
 				{
 					//the index may have changed if data was added or removed
 					renderer.index = index;
+					//if this item renderer used to be the typical item
+					//renderer, but it isn't anymore, it may have been set invisible!
+					renderer.visible = true;
 
 					//the typical item renderer is a special case, and we will
 					//have already put it into the active renderers, so we don't
@@ -1188,9 +1190,13 @@ package feathers.controls.supportClasses
 					this._selectedIndices.removeItemAt(indexOfIndex);
 				}
 			}
-			else
+			else if(isSelected)
 			{
 				this._selectedIndices.data = new <int>[index];
+			}
+			else
+			{
+				this._selectedIndices.removeAll();
 			}
 		}
 

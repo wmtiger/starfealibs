@@ -12,6 +12,7 @@ package feathers.core
 	import feathers.events.FeathersEventType;
 	import feathers.layout.ILayoutData;
 	import feathers.layout.ILayoutDisplayObject;
+	import feathers.utils.display.getDisplayObjectDepthFromStage;
 
 	import flash.errors.IllegalOperationError;
 	import flash.geom.Matrix;
@@ -189,7 +190,8 @@ package feathers.core
 		public function FeathersControl()
 		{
 			super();
-			this.addEventListener(Event.ADDED_TO_STAGE, initialize_addedToStageHandler);
+			this.addEventListener(Event.ADDED_TO_STAGE, feathersControl_addedToStageHandler);
+			this.addEventListener(Event.REMOVED_FROM_STAGE, feathersControl_removedFromStageHandler);
 			this.addEventListener(Event.FLATTEN, feathersControl_flattenHandler);
 		}
 
@@ -204,6 +206,7 @@ package feathers.core
 		 * can differentiate multiple styles of the same type of UI control. A
 		 * single control may have many names, and many controls can share a
 		 * single name. Names may be added, removed, or toggled on the <code>nameList</code>.
+		 * Names cannot contain spaces.
 		 *
 		 * <p>In the following example, a name is added to the name list:</p>
 		 *
@@ -301,6 +304,9 @@ package feathers.core
 		 * {
 		 *     control.addEventListener( FeathersEventType.INITIALIZE, initializeHandler );
 		 * }</listing>
+		 *
+		 * @see #event:initialize
+		 * @see #isCreated
 		 */
 		public function get isInitialized():Boolean
 		{
@@ -1231,6 +1237,41 @@ package feathers.core
 		protected var _hasValidated:Boolean = false;
 
 		/**
+		 * Determines if the component has been initialized and validated for
+		 * the first time.
+		 *
+		 * <p>In the following example, we check if the component is created or
+		 * not, and we listen for an event if it isn't:</p>
+		 *
+		 * <listing version="3.0">
+		 * if( !control.isCreated )
+		 * {
+		 *     control.addEventListener( FeathersEventType.CREATION_COMPLETE, creationCompleteHandler );
+		 * }</listing>
+		 *
+		 * @see #event:creationComplete
+		 * @see #isInitialized
+		 */
+		public function get isCreated():Boolean
+		{
+			return this._hasValidated;
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _depth:int = -1;
+
+		/**
+		 * The component's depth in the display list, relative to the stage. If
+		 * the component isn't on the stage, its depth will be <code>-1</code>.
+		 */
+		public function get depth():int
+		{
+			return this._depth;
+		}
+
+		/**
 		 * @private
 		 */
 		protected var _invalidateCount:int = 0;
@@ -1767,14 +1808,12 @@ package feathers.core
 		/**
 		 * @private
 		 * Initialize the control, if it hasn't been initialized yet. Then,
-		 * invalidate.
+		 * invalidate. If already initialized, check if invalid and put back
+		 * into queue.
 		 */
-		protected function initialize_addedToStageHandler(event:Event):void
+		protected function feathersControl_addedToStageHandler(event:Event):void
 		{
-			if(event.target != this)
-			{
-				return;
-			}
+			this._depth = getDisplayObjectDepthFromStage(this);
 			if(!this._isInitialized)
 			{
 				this.initialize();
@@ -1782,12 +1821,19 @@ package feathers.core
 				this._isInitialized = true;
 				this.dispatchEventWith(FeathersEventType.INITIALIZE, false);
 			}
-
 			if(this.isInvalid())
 			{
 				this._invalidateCount = 0;
 				VALIDATION_QUEUE.addControl(this, false);
 			}
+		}
+
+		/**
+		 * @private
+		 */
+		protected function feathersControl_removedFromStageHandler(event:Event):void
+		{
+			this._depth = -1;
 		}
 
 		/**

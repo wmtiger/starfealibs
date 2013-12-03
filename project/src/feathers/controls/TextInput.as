@@ -128,7 +128,7 @@ package feathers.controls
 		 *
 		 * <p>An alternate name should always be added to a component's
 		 * <code>nameList</code> before the component is added to the stage for
-		 * the first time.</p>
+		 * the first time. If it is added later, it will be ignored.</p>
 		 *
 		 * <p>In the following example, the searc style is applied to a text
 		 * input:</p>
@@ -643,10 +643,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>Setting properties in a <code>promptFactory</code> function
 		 * instead of using <code>promptProperties</code> will result in
@@ -1295,10 +1294,9 @@ package feathers.controls
 		 *
 		 * <p>If the subcomponent has its own subcomponents, their properties
 		 * can be set too, using attribute <code>&#64;</code> notation. For example,
-		 * to set the skin on the thumb of a <code>SimpleScrollBar</code>
-		 * which is in a <code>Scroller</code> which is in a <code>List</code>,
-		 * you can use the following syntax:</p>
-		 * <pre>list.scrollerProperties.&#64;verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
+		 * to set the skin on the thumb which is in a <code>SimpleScrollBar</code>,
+		 * which is in a <code>List</code>, you can use the following syntax:</p>
+		 * <pre>list.verticalScrollBarProperties.&#64;thumbProperties.defaultSkin = new Image(texture);</pre>
 		 *
 		 * <p>Setting properties in a <code>textEditorFactory</code> function
 		 * instead of using <code>textEditorProperties</code> will result in
@@ -1411,6 +1409,19 @@ package feathers.controls
 		}
 
 		/**
+		 * Manually removes focus from the text input control.
+		 */
+		public function clearFocus():void
+		{
+			this._isWaitingToSetFocus = false;
+			if(!this.textEditor || !this._textEditorHasFocus)
+			{
+				return;
+			}
+			this.textEditor.clearFocus();
+		}
+
+		/**
 		 * Sets the range of selected characters. If both values are the same,
 		 * or the end index is <code>-1</code>, the text insertion position is
 		 * changed and nothing is selected.
@@ -1427,10 +1438,12 @@ package feathers.controls
 			}
 			if(endIndex > this._text.length)
 			{
-				throw new RangeError("Expected start index > " + this._text.length + ". Received " + endIndex + ".");
+				throw new RangeError("Expected end index <= " + this._text.length + ". Received " + endIndex + ".");
 			}
 
-			if(this.textEditor)
+			//if it's invalid, we need to wait until validation before changing
+			//the selection
+			if(this.textEditor && (this._isValidating || !this.isInvalid()))
 			{
 				this._pendingSelectionStartIndex = -1;
 				this._pendingSelectionEndIndex = -1;
@@ -1651,10 +1664,18 @@ package feathers.controls
 			}
 			if(this._pendingSelectionStartIndex >= 0)
 			{
-				const startIndex:int = this._pendingSelectionStartIndex;
-				const endIndex:int = this._pendingSelectionEndIndex;
+				var startIndex:int = this._pendingSelectionStartIndex;
+				var endIndex:int = this._pendingSelectionEndIndex;
 				this._pendingSelectionStartIndex = -1;
 				this._pendingSelectionEndIndex = -1;
+				if(endIndex >= 0)
+				{
+					var textLength:int = this._text.length;
+					if(endIndex > textLength)
+					{
+						endIndex = textLength;
+					}
+				}
 				this.selectRange(startIndex, endIndex);
 			}
 		}
@@ -1792,7 +1813,7 @@ package feathers.controls
 			if(this.currentIcon)
 			{
 				this.currentIcon.x = this._paddingLeft;
-				this.currentIcon.y = this._paddingTop + (this.actualHeight - this._paddingTop - this._paddingRight - this.currentIcon.height) / 2;
+				this.currentIcon.y = this._paddingTop + (this.actualHeight - this._paddingTop - this._paddingBottom - this.currentIcon.height) / 2;
 				this.textEditor.x = this.currentIcon.x + this.currentIcon.width + this._gap;
 				this.promptTextRenderer.x = this.currentIcon.x + this.currentIcon.width + this._gap;
 			}
@@ -1859,7 +1880,7 @@ package feathers.controls
 		 */
 		protected function textInput_touchHandler(event:TouchEvent):void
 		{
-			if(!this._isEnabled)
+			if(!this._isEnabled || !this._isEditable)
 			{
 				this._touchPointID = -1;
 				return;
@@ -1969,7 +1990,7 @@ package feathers.controls
 			}
 			this._textEditorHasFocus = true;
 			this.currentState = STATE_FOCUSED;
-			if(this._focusManager)
+			if(this._focusManager && this._isFocusEnabled)
 			{
 				this._focusManager.focus = this;
 			}

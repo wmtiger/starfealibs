@@ -10,7 +10,6 @@ package feathers.layout
 	import feathers.core.IFeathersControl;
 
 	import flash.errors.IllegalOperationError;
-
 	import flash.geom.Point;
 
 	import starling.display.DisplayObject;
@@ -126,6 +125,66 @@ package feathers.layout
 				return;
 			}
 			this._gap = value;
+			this.dispatchEventWith(Event.CHANGE);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _firstGap:Number = NaN;
+
+		/**
+		 * The space, in pixels, between the first and second items. If the
+		 * value of <code>firstGap</code> is <code>NaN</code>, the value of the
+		 * <code>gap</code> property will be used instead.
+		 *
+		 * @default NaN
+		 */
+		public function get firstGap():Number
+		{
+			return this._firstGap;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set firstGap(value:Number):void
+		{
+			if(this._firstGap == value)
+			{
+				return;
+			}
+			this._firstGap = value;
+			this.dispatchEventWith(Event.CHANGE);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _lastGap:Number = NaN;
+
+		/**
+		 * The space, in pixels, between the last and second to last items. If
+		 * the value of <code>lastGap</code> is <code>NaN</code>, the value of
+		 * the <code>gap</code> property will be used instead.
+		 *
+		 * @default NaN
+		 */
+		public function get lastGap():Number
+		{
+			return this._lastGap;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set lastGap(value:Number):void
+		{
+			if(this._lastGap == value)
+			{
+				return;
+			}
+			this._lastGap = value;
 			this.dispatchEventWith(Event.CHANGE);
 		}
 
@@ -395,6 +454,37 @@ package feathers.layout
 				return;
 			}
 			this._hasVariableItemDimensions = value;
+			this.dispatchEventWith(Event.CHANGE);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _distributeHeights:Boolean = false;
+
+		/**
+		 * Distributes the height of the view port equally to each item. If the
+		 * view port height needs to be measured, the largest item's height will
+		 * be used for all items, subject to any specified minimum and maximum
+		 * height values.
+		 *
+		 * @default false
+		 */
+		public function get distributeHeights():Boolean
+		{
+			return this._distributeHeights;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set distributeHeights(value:Boolean):void
+		{
+			if(this._distributeHeights == value)
+			{
+				return;
+			}
+			this._distributeHeights = value;
 			this.dispatchEventWith(Event.CHANGE);
 		}
 
@@ -674,27 +764,52 @@ package feathers.layout
 				var calculatedTypicalItemHeight:Number = this._typicalItem ? this._typicalItem.height : 0;
 			}
 
-			if(!this._useVirtualLayout || this._hasVariableItemDimensions ||
+			if(!this._useVirtualLayout || this._hasVariableItemDimensions || this._distributeHeights ||
 				this._horizontalAlign != HORIZONTAL_ALIGN_JUSTIFY || isNaN(explicitWidth))
 			{
-				this.validateItems(items, explicitWidth - this._paddingLeft - this._paddingRight);
+				this.validateItems(items, explicitWidth - this._paddingLeft - this._paddingRight, explicitHeight);
 			}
 
+			var distributedHeight:Number;
+			if(this._distributeHeights)
+			{
+				distributedHeight = this.calculateDistributedHeight(items, explicitHeight, minHeight, maxHeight);
+			}
+			var hasDistributedHeight:Boolean = !isNaN(distributedHeight);
+
 			this._discoveredItemsCache.length = 0;
+			var hasFirstGap:Boolean = !isNaN(this._firstGap);
+			var hasLastGap:Boolean = !isNaN(this._lastGap);
 			var maxItemWidth:Number = this._useVirtualLayout ? calculatedTypicalItemWidth : 0;
 			var positionY:Number = boundsY + this._paddingTop;
 			var indexOffset:int = 0;
+			var itemCount:int = items.length;
+			var totalItemCount:int = itemCount;
 			if(this._useVirtualLayout && !this._hasVariableItemDimensions)
 			{
+				totalItemCount += this._beforeVirtualizedItemCount + this._afterVirtualizedItemCount;
 				indexOffset = this._beforeVirtualizedItemCount;
 				positionY += (this._beforeVirtualizedItemCount * (calculatedTypicalItemHeight + this._gap));
+				if(hasFirstGap && this._beforeVirtualizedItemCount > 0)
+				{
+					positionY = positionY - this._gap + this._firstGap;
+				}
 			}
-			const itemCount:int = items.length;
+			var secondToLastIndex:int = totalItemCount - 2;
 			var discoveredItemsCacheLastIndex:int = 0;
 			for(var i:int = 0; i < itemCount; i++)
 			{
 				var item:DisplayObject = items[i];
 				var iNormalized:int = i + indexOffset;
+				var gap:Number = this._gap;
+				if(hasFirstGap && iNormalized == 0)
+				{
+					gap = this._firstGap;
+				}
+				else if(hasLastGap && iNormalized > 0 && iNormalized == secondToLastIndex)
+				{
+					gap = this._lastGap;
+				}
 				if(this._useVirtualLayout && this._hasVariableItemDimensions)
 				{
 					var cachedHeight:Number = this._heightCache[iNormalized];
@@ -703,11 +818,11 @@ package feathers.layout
 				{
 					if(!this._hasVariableItemDimensions || isNaN(cachedHeight))
 					{
-						positionY += calculatedTypicalItemHeight + this._gap;
+						positionY += calculatedTypicalItemHeight + gap;
 					}
 					else
 					{
-						positionY += cachedHeight + this._gap;
+						positionY += cachedHeight + gap;
 					}
 				}
 				else
@@ -718,7 +833,15 @@ package feathers.layout
 					}
 					item.y = positionY;
 					var itemWidth:Number = item.width;
-					var itemHeight:Number = item.height;
+					var itemHeight:Number;
+					if(hasDistributedHeight)
+					{
+						item.height = itemHeight = distributedHeight;
+					}
+					else
+					{
+						itemHeight = item.height;
+					}
 					if(this._useVirtualLayout)
 					{
 						if(this._hasVariableItemDimensions)
@@ -734,7 +857,7 @@ package feathers.layout
 							item.height = itemHeight = calculatedTypicalItemHeight;
 						}
 					}
-					positionY += itemHeight + this._gap;
+					positionY += itemHeight + gap;
 					if(itemWidth > maxItemWidth)
 					{
 						maxItemWidth = itemWidth;
@@ -749,6 +872,10 @@ package feathers.layout
 			if(this._useVirtualLayout && !this._hasVariableItemDimensions)
 			{
 				positionY += (this._afterVirtualizedItemCount * (calculatedTypicalItemHeight + this._gap));
+				if(hasLastGap && this._afterVirtualizedItemCount > 0)
+				{
+					positionY = positionY - this._gap + this._lastGap;
+				}
 			}
 
 			const discoveredItems:Vector.<DisplayObject> = this._useVirtualLayout ? this._discoveredItemsCache : items;
@@ -768,7 +895,7 @@ package feathers.layout
 			}
 			const discoveredItemCount:int = discoveredItems.length;
 
-			const totalHeight:Number = positionY - this._gap + this._paddingBottom - boundsY;
+			var totalHeight:Number = positionY - this._gap + this._paddingBottom - boundsY;
 			var availableHeight:Number = explicitHeight;
 			if(isNaN(availableHeight))
 			{
@@ -889,25 +1016,44 @@ package feathers.layout
 			var calculatedTypicalItemWidth:Number = this._typicalItem ? this._typicalItem.width : 0;
 			var calculatedTypicalItemHeight:Number = this._typicalItem ? this._typicalItem.height : 0;
 
-			var positionY:Number = 0;
-			var maxItemWidth:Number = calculatedTypicalItemWidth;
-			if(!this._hasVariableItemDimensions)
+			var hasFirstGap:Boolean = !isNaN(this._firstGap);
+			var hasLastGap:Boolean = !isNaN(this._lastGap);
+			var positionY:Number;
+			if(this._distributeHeights)
 			{
-				positionY += ((calculatedTypicalItemHeight + this._gap) * itemCount);
+				positionY = (calculatedTypicalItemHeight + this._gap) * itemCount;
 			}
 			else
 			{
-				for(var i:int = 0; i < itemCount; i++)
+				positionY = 0;
+				var maxItemWidth:Number = calculatedTypicalItemWidth;
+				if(!this._hasVariableItemDimensions)
 				{
-					if(isNaN(this._heightCache[i]))
+					positionY += ((calculatedTypicalItemHeight + this._gap) * itemCount);
+				}
+				else
+				{
+					for(var i:int = 0; i < itemCount; i++)
 					{
-						positionY += calculatedTypicalItemHeight + this._gap;
-					}
-					else
-					{
-						positionY += this._heightCache[i] + this._gap;
+						if(isNaN(this._heightCache[i]))
+						{
+							positionY += calculatedTypicalItemHeight + this._gap;
+						}
+						else
+						{
+							positionY += this._heightCache[i] + this._gap;
+						}
 					}
 				}
+			}
+			positionY -= this._gap;
+			if(hasFirstGap && itemCount > 1)
+			{
+				positionY = positionY - this._gap + this._firstGap;
+			}
+			if(hasLastGap && itemCount > 2)
+			{
+				positionY = positionY - this._gap + this._lastGap;
 			}
 
 			if(needsWidth)
@@ -930,7 +1076,7 @@ package feathers.layout
 
 			if(needsHeight)
 			{
-				var resultHeight:Number = positionY - this._gap + this._paddingTop + this._paddingBottom;
+				var resultHeight:Number = positionY + this._paddingTop + this._paddingBottom;
 				if(resultHeight < minHeight)
 				{
 					resultHeight = minHeight;
@@ -1009,6 +1155,8 @@ package feathers.layout
 			var calculatedTypicalItemWidth:Number = this._typicalItem ? this._typicalItem.width : 0;
 			var calculatedTypicalItemHeight:Number = this._typicalItem ? this._typicalItem.height : 0;
 
+			var hasFirstGap:Boolean = !isNaN(this._firstGap);
+			var hasLastGap:Boolean = !isNaN(this._lastGap);
 			var resultLastIndex:int = 0;
 			const visibleTypicalItemCount:int = Math.ceil(height / (calculatedTypicalItemHeight + this._gap));
 			if(!this._hasVariableItemDimensions)
@@ -1017,6 +1165,14 @@ package feathers.layout
 				//the same height
 				var indexOffset:int = 0;
 				var totalItemHeight:Number = itemCount * (calculatedTypicalItemHeight + this._gap) - this._gap;
+				if(hasFirstGap && itemCount > 1)
+				{
+					totalItemHeight = totalItemHeight - this._gap + this._firstGap;
+				}
+				if(hasLastGap && itemCount > 2)
+				{
+					totalItemHeight = totalItemHeight - this._gap + this._lastGap;
+				}
 				if(totalItemHeight < height)
 				{
 					if(this._verticalAlign == VERTICAL_ALIGN_BOTTOM)
@@ -1054,10 +1210,20 @@ package feathers.layout
 				}
 				return result;
 			}
-			const maxPositionY:Number = scrollY + height;
+			var secondToLastIndex:int = itemCount - 2;
+			var maxPositionY:Number = scrollY + height;
 			var positionY:Number = this._paddingTop;
 			for(i = 0; i < itemCount; i++)
 			{
+				var gap:Number = this._gap;
+				if(hasFirstGap && i == 0)
+				{
+					gap = this._firstGap;
+				}
+				else if(hasLastGap && i > 0 && i == secondToLastIndex)
+				{
+					gap = this._lastGap;
+				}
 				if(isNaN(this._heightCache[i]))
 				{
 					var itemHeight:Number = calculatedTypicalItemHeight;
@@ -1067,7 +1233,7 @@ package feathers.layout
 					itemHeight = this._heightCache[i];
 				}
 				var oldPositionY:Number = positionY;
-				positionY += itemHeight + this._gap;
+				positionY += itemHeight + gap;
 				if(positionY > scrollY && oldPositionY < maxPositionY)
 				{
 					result[resultLastIndex] = i;
@@ -1137,11 +1303,16 @@ package feathers.layout
 				var calculatedTypicalItemHeight:Number = this._typicalItem ? this._typicalItem.height : 0;
 			}
 
+			var hasFirstGap:Boolean = !isNaN(this._firstGap);
+			var hasLastGap:Boolean = !isNaN(this._lastGap);
 			var positionY:Number = y + this._paddingTop;
 			var startIndexOffset:int = 0;
 			var endIndexOffset:Number = 0;
+			var itemCount:int = items.length;
+			var totalItemCount:int = itemCount;
 			if(this._useVirtualLayout && !this._hasVariableItemDimensions)
 			{
+				totalItemCount += this._beforeVirtualizedItemCount + this._afterVirtualizedItemCount;
 				startIndexOffset = this._beforeVirtualizedItemCount;
 				positionY += (this._beforeVirtualizedItemCount * (calculatedTypicalItemHeight + this._gap));
 
@@ -1153,11 +1324,21 @@ package feathers.layout
 				positionY += (endIndexOffset * (calculatedTypicalItemHeight + this._gap));
 			}
 			index -= (startIndexOffset + endIndexOffset);
+			var secondToLastIndex:int = totalItemCount - 2;
 			var lastHeight:Number = 0;
 			for(var i:int = 0; i <= index; i++)
 			{
 				var item:DisplayObject = items[i];
 				var iNormalized:int = i + startIndexOffset;
+				var gap:Number = this._gap;
+				if(hasFirstGap && iNormalized == 0)
+				{
+					gap = this._firstGap;
+				}
+				else if(hasLastGap && iNormalized > 0 && iNormalized == secondToLastIndex)
+				{
+					gap = this._lastGap;
+				}
 				if(this._useVirtualLayout && this._hasVariableItemDimensions)
 				{
 					var cachedHeight:Number = this._heightCache[iNormalized];
@@ -1193,9 +1374,9 @@ package feathers.layout
 					}
 					lastHeight = itemHeight;
 				}
-				positionY += lastHeight + this._gap;
+				positionY += lastHeight + gap;
 			}
-			positionY -= (lastHeight + this._gap);
+			positionY -= (lastHeight + gap);
 			if(this._scrollPositionVerticalAlign == VERTICAL_ALIGN_MIDDLE)
 			{
 				positionY -= (height - lastHeight) / 2;
@@ -1213,14 +1394,13 @@ package feathers.layout
 		/**
 		 * @private
 		 */
-		protected function validateItems(items:Vector.<DisplayObject>, justifyWidth:Number):void
+		protected function validateItems(items:Vector.<DisplayObject>, justifyWidth:Number, distributedHeight:Number):void
 		{
 			//if the alignment is justified, then we want to set the width of
 			//each item before validating because setting one dimension may
 			//cause the other dimension to change, and that will invalidate the
 			//layout if it happens after validation, causing more invalidation
 			var mustSetJustifyWidth:Boolean = this._horizontalAlign == HORIZONTAL_ALIGN_JUSTIFY && !isNaN(justifyWidth);
-
 			var itemCount:int = items.length;
 			for(var i:int = 0; i < itemCount; i++)
 			{
@@ -1232,6 +1412,10 @@ package feathers.layout
 				if(mustSetJustifyWidth)
 				{
 					item.width = justifyWidth;
+				}
+				if(this._distributeHeights)
+				{
+					item.height = distributedHeight;
 				}
 				if(item is IFeathersControl)
 				{
@@ -1265,6 +1449,53 @@ package feathers.layout
 			{
 				IFeathersControl(this._typicalItem).validate();
 			}
+		}
+
+		/**
+		 * @private
+		 */
+		protected function calculateDistributedHeight(items:Vector.<DisplayObject>, explicitHeight:Number, minHeight:Number, maxHeight:Number):Number
+		{
+			var itemCount:int = items.length;
+			if(isNaN(explicitHeight))
+			{
+				var maxItemHeight:Number = 0;
+				for(var i:int = 0; i < itemCount; i++)
+				{
+					var item:DisplayObject = items[i];
+					var itemHeight:Number = item.height;
+					if(itemHeight > maxItemHeight)
+					{
+						maxItemHeight = itemHeight;
+					}
+				}
+				explicitHeight = maxItemHeight * itemCount + this._paddingTop + this._paddingBottom + this._gap * (itemCount - 1);
+				var needsRecalculation:Boolean = false;
+				if(explicitHeight > maxHeight)
+				{
+					explicitHeight = maxHeight;
+					needsRecalculation = true;
+				}
+				else if(explicitHeight < minHeight)
+				{
+					explicitHeight = minHeight;
+					needsRecalculation = true;
+				}
+				if(!needsRecalculation)
+				{
+					return maxItemHeight;
+				}
+			}
+			var availableSpace:Number = explicitHeight - this._paddingTop - this._paddingBottom - this._gap * (itemCount - 1);
+			if(itemCount > 1 && !isNaN(this._firstGap))
+			{
+				availableSpace += this._gap - this._firstGap;
+			}
+			if(itemCount > 2 && !isNaN(this._lastGap))
+			{
+				availableSpace += this._gap - this._lastGap;
+			}
+			return availableSpace / itemCount;
 		}
 	}
 }

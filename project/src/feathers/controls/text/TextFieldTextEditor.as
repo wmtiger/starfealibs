@@ -957,9 +957,15 @@ package feathers.controls.text
 			{
 				this._oldGlobalX = HELPER_POINT.x;
 				this._oldGlobalY = HELPER_POINT.y;
-				const starlingViewPort:Rectangle = Starling.current.viewPort;
-				this.textField.x = Math.round(starlingViewPort.x + (HELPER_POINT.x * Starling.contentScaleFactor));
-				this.textField.y = Math.round(starlingViewPort.y + (HELPER_POINT.y * Starling.contentScaleFactor));
+				var starlingViewPort:Rectangle = Starling.current.viewPort;
+				var nativeScaleFactor:Number = 1;
+				if(Starling.current.supportHighResolutions)
+				{
+					nativeScaleFactor = Starling.current.nativeStage.contentsScaleFactor;
+				}
+				var scaleFactor:Number = Starling.contentScaleFactor / nativeScaleFactor;
+				this.textField.x = Math.round(starlingViewPort.x + (HELPER_POINT.x * scaleFactor));
+				this.textField.y = Math.round(starlingViewPort.y + (HELPER_POINT.y * scaleFactor));
 			}
 			this.textField.rotation = matrixToRotation(HELPER_MATRIX) * 180 / Math.PI;
 
@@ -994,8 +1000,8 @@ package feathers.controls.text
 
 			if(this._pendingSelectionStartIndex >= 0)
 			{
-				const startIndex:int = this._pendingSelectionStartIndex;
-				const endIndex:int = this._pendingSelectionEndIndex;
+				var startIndex:int = this._pendingSelectionStartIndex;
+				var endIndex:int = this._pendingSelectionEndIndex;
 				this._pendingSelectionStartIndex = -1;
 				this._pendingSelectionEndIndex = -1;
 				this.selectRange(startIndex, endIndex);
