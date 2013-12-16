@@ -14,6 +14,11 @@ package ext.wm.feathers
 			super();
 		}
 		
+		override protected function initialize():void
+		{
+			
+		}
+		
 		/**
 		 * @private
 		 */
@@ -95,8 +100,9 @@ package ext.wm.feathers
 		{
 			const stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
 			var sizeInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SIZE);
+			var layoutInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_LAYOUT);
 			
-			if(sizeInvalid || stylesInvalid)
+			if(sizeInvalid || stylesInvalid || layoutInvalid)
 			{
 				this.refreshBackgroundSkin();
 				updateLayout();
