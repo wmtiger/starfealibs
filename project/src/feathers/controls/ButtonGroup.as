@@ -489,7 +489,7 @@ package feathers.controls
 		/**
 		 * @private
 		 */
-		protected var _distributeButtonSizes:Boolean = false;
+		protected var _distributeButtonSizes:Boolean = true;
 
 		/**
 		 * If <code>true</code>, the buttons will be equally sized in the
@@ -499,12 +499,12 @@ package feathers.controls
 		 * <code>false</code>, the buttons will be sized to their ideal
 		 * dimensions.
 		 *
-		 * <p>The following example distributes the button sizes:</p>
+		 * <p>The following example doesn't distribute the button sizes:</p>
 		 *
 		 * <listing version="3.0">
-		 * group.distributeButtonSizes = true;</listing>
+		 * group.distributeButtonSizes = false;</listing>
 		 *
-		 * @default false
+		 * @default true
 		 */
 		public function get distributeButtonSizes():Boolean
 		{

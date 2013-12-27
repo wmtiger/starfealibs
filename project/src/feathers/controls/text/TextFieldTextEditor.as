@@ -582,13 +582,16 @@ package feathers.controls.text
 		 */
 		override public function render(support:RenderSupport, parentAlpha:Number):void
 		{
-			this.positionTextField();
-
 			//theoretically, this will ensure that the TextField is set visible
 			//or invisible immediately after the snapshot changes visibility in
 			//the rendered graphics. the OS might take longer to do the change,
 			//though.
-			this.textField.visible = this.textSnapshot ? !this.textSnapshot.visible : this._textFieldHasFocus;
+			var isTextFieldVisible:Boolean = this.textSnapshot ? !this.textSnapshot.visible : this._textFieldHasFocus;
+			this.textField.visible = isTextFieldVisible;
+
+			this.transformTextField();
+			this.positionSnapshot();
+
 			super.render(support, parentAlpha);
 		}
 
@@ -641,11 +644,20 @@ package feathers.controls.text
 						}
 						else
 						{
-							const bounds:Rectangle = this.textField.getCharBoundaries(this._pendingSelectionStartIndex);
-							const boundsX:Number = bounds.x;
-							if(bounds && (boundsX + bounds.width - positionX) < (positionX - boundsX))
+							var bounds:Rectangle = this.textField.getCharBoundaries(this._pendingSelectionStartIndex);
+							//bounds should never be null because the character
+							//index passed to getCharBoundaries() comes from a
+							//call to getCharIndexAtPoint(). however, a user
+							//reported that a null reference error happened
+							//here! I couldn't reproduce, but I might as well
+							//assume that the runtime has a bug. won't hurt.
+							if(bounds)
 							{
-								this._pendingSelectionStartIndex++;
+								var boundsX:Number = bounds.x;
+								if(bounds && (boundsX + bounds.width - positionX) < (positionX - boundsX))
+								{
+									this._pendingSelectionStartIndex++;
+								}
 							}
 						}
 						this._pendingSelectionEndIndex = this._pendingSelectionStartIndex;
@@ -905,9 +917,8 @@ package feathers.controls.text
 			{
 				this.refreshSnapshotParameters();
 				this.refreshTextFieldSize();
-				this.getTransformationMatrix(this.stage, HELPER_MATRIX);
-				this.textField.scaleX = matrixToScaleX(HELPER_MATRIX);
-				this.textField.scaleY = matrixToScaleY(HELPER_MATRIX);
+				this.transformTextField();
+				this.positionSnapshot();
 			}
 
 			this.checkIfNewSnapshotIsNeeded();
@@ -948,8 +959,12 @@ package feathers.controls.text
 		/**
 		 * @private
 		 */
-		protected function positionTextField():void
+		protected function transformTextField():void
 		{
+			if(!this.textField.visible)
+			{
+				return;
+			}
 			HELPER_POINT.x = HELPER_POINT.y = 0;
 			this.getTransformationMatrix(this.stage, HELPER_MATRIX);
 			MatrixUtil.transformCoords(HELPER_MATRIX, 0, 0, HELPER_POINT);
@@ -968,12 +983,22 @@ package feathers.controls.text
 				this.textField.y = Math.round(starlingViewPort.y + (HELPER_POINT.y * scaleFactor));
 			}
 			this.textField.rotation = matrixToRotation(HELPER_MATRIX) * 180 / Math.PI;
+			this.textField.scaleX = matrixToScaleX(HELPER_MATRIX);
+			this.textField.scaleY = matrixToScaleY(HELPER_MATRIX);
+		}
 
-			if(this.textSnapshot)
+		/**
+		 * @private
+		 */
+		protected function positionSnapshot():void
+		{
+			if(!this.textSnapshot)
 			{
-				this.textSnapshot.x = Math.round(HELPER_MATRIX.tx) - HELPER_MATRIX.tx;
-				this.textSnapshot.y = Math.round(HELPER_MATRIX.ty) - HELPER_MATRIX.ty;
+				return;
 			}
+			this.getTransformationMatrix(this.stage, HELPER_MATRIX);
+			this.textSnapshot.x = Math.round(HELPER_MATRIX.tx) - HELPER_MATRIX.tx;
+			this.textSnapshot.y = Math.round(HELPER_MATRIX.ty) - HELPER_MATRIX.ty;
 		}
 
 		/**
