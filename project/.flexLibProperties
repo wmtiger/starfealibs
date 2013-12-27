@@ -6,6 +6,9 @@
     <classEntry path="ext.wm.feathers.WmPanelScreen"/>
     <classEntry path="ext.wm.feathers.AlertInput"/>
     <classEntry path="ext.wm.feathers.FeaSprite"/>
+    <classEntry path="ext.wm.utils.STLStartUtil"/>
+    <classEntry path="ext.wm.utils.STLConstant"/>
+    <classEntry path="ext.wm.utils.MobileUtil"/>
   </includeClasses>
   <includeResources/>
   <namespaceManifests/>
