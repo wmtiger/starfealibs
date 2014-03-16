@@ -9,6 +9,8 @@
     <classEntry path="ext.wm.utils.STLStartUtil"/>
     <classEntry path="ext.wm.utils.STLConstant"/>
     <classEntry path="ext.wm.utils.MobileUtil"/>
+    <classEntry path="ext.wm.feathers.WmListItemRender"/>
+    <classEntry path="ext.wm.feathers.IRenderClickHandler"/>
   </includeClasses>
   <includeResources/>
   <namespaceManifests/>
