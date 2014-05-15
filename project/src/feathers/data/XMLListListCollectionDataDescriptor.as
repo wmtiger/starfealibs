@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -62,9 +62,9 @@ package feathers.data
 			
 			//wow, this is weird. unless I have failed epicly, I can find no 
 			//other way to insert an element into an XMLList at a specific index.
-			const dataClone:XMLList = (data as XMLList).copy();
+			var dataClone:XMLList = (data as XMLList).copy();
 			data[index] = item;
-			const listLength:int = dataClone.length();
+			var listLength:int = dataClone.length();
 			for(var i:int = index; i < listLength; i++)
 			{
 				data[i + 1] = dataClone[i];
@@ -77,7 +77,7 @@ package feathers.data
 		public function removeItemAt(data:Object, index:int):Object
 		{
 			this.checkForCorrectDataType(data);
-			const item:XML = data[index];
+			var item:XML = data[index];
 			delete data[index];
 			return item;
 		}
@@ -88,8 +88,8 @@ package feathers.data
 		public function removeAll(data:Object):void
 		{
 			this.checkForCorrectDataType(data);
-			const list:XMLList = data as XMLList;
-			const listLength:int = list.length();
+			var list:XMLList = data as XMLList;
+			var listLength:int = list.length();
 			for(var i:int = 0; i < listLength; i++)
 			{
 				delete data[0];
@@ -102,8 +102,8 @@ package feathers.data
 		public function getItemIndex(data:Object, item:Object):int
 		{
 			this.checkForCorrectDataType(data);
-			const list:XMLList = data as XMLList;
-			const listLength:int = list.length();
+			var list:XMLList = data as XMLList;
+			var listLength:int = list.length();
 			for(var i:int = 0; i < listLength; i++)
 			{
 				var currentItem:XML = list[i];

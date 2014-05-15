@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -48,7 +48,7 @@ package feathers.skins
 		 */
 		public function clearValueForState(state:Object):Object
 		{
-			const value:Object = this.stateToValue[state];
+			var value:Object = this.stateToValue[state];
 			delete this.stateToValue[state];
 			return value;
 		}

@@ -1,12 +1,13 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
 */
 package feathers.controls
 {
+	import feathers.skins.IStyleProvider;
 	import feathers.system.DeviceCapabilities;
 	import feathers.utils.display.getDisplayObjectDepthFromStage;
 
@@ -142,6 +143,29 @@ package feathers.controls
 		public static const INTERACTION_MODE_TOUCH_AND_SCROLL_BARS:String = "touchAndScrollBars";
 
 		/**
+		 * @copy feathers.controls.Scroller#DECELERATION_RATE_NORMAL
+		 *
+		 * @see feathers.controls.Scroller#decelerationRate
+		 */
+		public static const DECELERATION_RATE_NORMAL:Number = 0.998;
+
+		/**
+		 * @copy feathers.controls.Scroller#DECELERATION_RATE_FAST
+		 *
+		 * @see feathers.controls.Scroller#decelerationRate
+		 */
+		public static const DECELERATION_RATE_FAST:Number = 0.99;
+
+		/**
+		 * The default <code>IStyleProvider</code> for all <code>PanelScreen</code>
+		 * components.
+		 *
+		 * @default null
+		 * @see feathers.core.FeathersControl#styleProvider
+		 */
+		public static var styleProvider:IStyleProvider;
+
+		/**
 		 * Constructor.
 		 */
 		public function PanelScreen()
@@ -151,6 +175,14 @@ package feathers.controls
 			this.headerName = DEFAULT_CHILD_NAME_HEADER;
 			this.originalDPI = DeviceCapabilities.dpi;
 			this.clipContent = false;
+		}
+
+		/**
+		 * @private
+		 */
+		override protected function get defaultStyleProvider():IStyleProvider
+		{
+			return PanelScreen.styleProvider;
 		}
 
 		/**

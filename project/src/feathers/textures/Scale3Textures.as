@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -14,10 +14,15 @@ package feathers.textures
 	/**
 	 * A set of three textures used by <code>Scale3Image</code>.
 	 *
-	 * @see org.josht.starling.display.Scale3Image
+	 * @see feathers.display.Scale3Image
 	 */
 	public final class Scale3Textures
 	{
+		/**
+		 * @private
+		 */
+		private static const DIMENSIONS_ERROR:String = "The size of the second region must be greater than zero.";
+
 		/**
 		 * If the direction is horizontal, the layout will start on the left and continue to the right.
 		 */
@@ -29,10 +34,19 @@ package feathers.textures
 		public static const DIRECTION_VERTICAL:String = "vertical";
 
 		/**
+		 * @private
+		 */
+		private static const HELPER_RECTANGLE:Rectangle = new Rectangle();
+
+		/**
 		 * Constructor.
 		 */
 		public function Scale3Textures(texture:Texture, firstRegionSize:Number, secondRegionSize:Number, direction:String = DIRECTION_HORIZONTAL)
 		{
+			if(secondRegionSize <= 0)
+			{
+				throw new ArgumentError(DIMENSIONS_ERROR);
+			}
 			this._texture = texture;
 			this._firstRegionSize = firstRegionSize;
 			this._secondRegionSize = secondRegionSize;
@@ -141,7 +155,12 @@ package feathers.textures
 		 */
 		private function initialize():void
 		{
-			const textureFrame:Rectangle = texture.frame;
+			var textureFrame:Rectangle = texture.frame;
+			if(!textureFrame)
+			{
+				textureFrame = HELPER_RECTANGLE;
+				textureFrame.setTo(0, 0, this._texture.width, this._texture.height);
+			}
 			var thirdRegionSize:Number;
 			if(this._direction == DIRECTION_VERTICAL)
 			{
@@ -154,8 +173,8 @@ package feathers.textures
 
 			if(this._direction == DIRECTION_VERTICAL)
 			{
-				const regionTopHeight:Number = this._firstRegionSize + textureFrame.y;
-				const regionBottomHeight:Number = thirdRegionSize - (textureFrame.height - texture.height) - textureFrame.y;
+				var regionTopHeight:Number = this._firstRegionSize + textureFrame.y;
+				var regionBottomHeight:Number = thirdRegionSize - (textureFrame.height - texture.height) - textureFrame.y;
 
 				var hasTopFrame:Boolean = regionTopHeight != this._firstRegionSize;
 				var hasRightFrame:Boolean = (textureFrame.width - textureFrame.x) != texture.width;
@@ -176,8 +195,8 @@ package feathers.textures
 			}
 			else //horizontal
 			{
-				const regionLeftWidth:Number = this._firstRegionSize + textureFrame.x;
-				const regionRightWidth:Number = thirdRegionSize - (textureFrame.width - texture.width) - textureFrame.x;
+				var regionLeftWidth:Number = this._firstRegionSize + textureFrame.x;
+				var regionRightWidth:Number = thirdRegionSize - (textureFrame.width - texture.width) - textureFrame.x;
 
 				hasTopFrame = textureFrame.y != 0;
 				hasRightFrame = regionRightWidth != thirdRegionSize;

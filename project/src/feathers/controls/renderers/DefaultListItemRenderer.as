@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -9,6 +9,7 @@ package feathers.controls.renderers
 {
 	import feathers.controls.List;
 	import feathers.events.FeathersEventType;
+	import feathers.skins.IStyleProvider;
 
 	/**
 	 * The default item renderer for List control. Supports up to three optional
@@ -20,7 +21,6 @@ package feathers.controls.renderers
 	 */
 	public class DefaultListItemRenderer extends BaseDefaultItemRenderer implements IListItemRenderer
 	{
-
 		/**
 		 * @copy feathers.controls.Button#ICON_POSITION_TOP
 		 *
@@ -166,11 +166,28 @@ package feathers.controls.renderers
 		public static const LAYOUT_ORDER_LABEL_ICON_ACCESSORY:String = "labelIconAccessory";
 
 		/**
+		 * The default <code>IStyleProvider</code> for all <code>DefaultListItemRenderer</code>
+		 * components.
+		 *
+		 * @default null
+		 * @see feathers.core.FeathersControl#styleProvider
+		 */
+		public static var styleProvider:IStyleProvider;
+
+		/**
 		 * Constructor.
 		 */
 		public function DefaultListItemRenderer()
 		{
 			super();
+		}
+
+		/**
+		 * @private
+		 */
+		override protected function get defaultStyleProvider():IStyleProvider
+		{
+			return DefaultListItemRenderer.styleProvider;
 		}
 		
 		/**
@@ -219,7 +236,7 @@ package feathers.controls.renderers
 			this._owner = value;
 			if(this._owner)
 			{
-				const list:List = List(this._owner);
+				var list:List = List(this._owner);
 				this.isSelectableWithoutToggle = list.isSelectable;
 				if(list.allowMultipleSelection)
 				{

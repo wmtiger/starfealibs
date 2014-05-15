@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -50,6 +50,8 @@ package feathers.layout
 		 * The width of the layout object, as a percentage of the container's
 		 * width.
 		 *
+		 * <p>If the value is <code>NaN</code>, this property is ignored.</p>
+		 *
 		 * @default NaN
 		 */
 		public function get percentWidth():Number
@@ -78,6 +80,8 @@ package feathers.layout
 		/**
 		 * The height of the layout object, as a percentage of the container's
 		 * height.
+		 *
+		 * <p>If the value is <code>NaN</code>, this property is ignored.</p>
 		 *
 		 * @default NaN
 		 */

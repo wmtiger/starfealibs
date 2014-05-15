@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -49,9 +49,21 @@ package feathers.system
 		 */
 		public static function isTablet(stage:Stage):Boolean
 		{
-			const screenWidth:Number = isNaN(screenPixelWidth) ? stage.fullScreenWidth : screenPixelWidth;
-			const screenHeight:Number = isNaN(screenPixelHeight) ? stage.fullScreenHeight : screenPixelHeight;
-			return (Math.max(screenWidth, screenHeight) / dpi) >= tabletScreenMinimumInches;
+			var screenWidth:Number = screenPixelWidth;
+			if(screenWidth != screenWidth) //isNaN
+			{
+				screenWidth = stage.fullScreenWidth;
+			}
+			var screenHeight:Number = screenPixelHeight;
+			if(screenHeight != screenHeight) //isNaN
+			{
+				screenHeight = stage.fullScreenHeight;
+			}
+			if(screenWidth < screenHeight)
+			{
+				screenWidth = screenHeight;
+			}
+			return (screenWidth / dpi) >= tabletScreenMinimumInches;
 		}
 
 		/**
@@ -70,7 +82,11 @@ package feathers.system
 		 */
 		public static function screenInchesX(stage:Stage):Number
 		{
-			const screenWidth:Number = isNaN(screenPixelWidth) ? stage.fullScreenWidth : screenPixelWidth;
+			var screenWidth:Number = screenPixelWidth;
+			if(screenWidth != screenWidth) //isNaN
+			{
+				screenWidth = stage.fullScreenWidth;
+			}
 			return screenWidth / dpi;
 		}
 
@@ -80,7 +96,11 @@ package feathers.system
 		 */
 		public static function screenInchesY(stage:Stage):Number
 		{
-			const screenHeight:Number = isNaN(screenPixelHeight) ? stage.fullScreenHeight : screenPixelHeight;
+			var screenHeight:Number = screenPixelHeight;
+			if(screenHeight != screenHeight) //isNaN
+			{
+				screenHeight = stage.fullScreenHeight;
+			}
 			return screenHeight / dpi;
 		}
 	}

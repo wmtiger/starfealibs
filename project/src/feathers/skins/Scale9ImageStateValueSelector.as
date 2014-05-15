@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -68,7 +68,7 @@ package feathers.skins
 		 */
 		override public function updateValue(target:Object, state:Object, oldValue:Object = null):Object
 		{
-			const textures:Scale9Textures = super.updateValue(target, state) as Scale9Textures;
+			var textures:Scale9Textures = super.updateValue(target, state) as Scale9Textures;
 			if(!textures)
 			{
 				return null;
@@ -87,11 +87,8 @@ package feathers.skins
 
 			for(var propertyName:String in this._imageProperties)
 			{
-				if(image.hasOwnProperty(propertyName))
-				{
-					var propertyValue:Object = this._imageProperties[propertyName];
-					image[propertyName] = propertyValue;
-				}
+				var propertyValue:Object = this._imageProperties[propertyName];
+				image[propertyName] = propertyValue;
 			}
 
 			return image;

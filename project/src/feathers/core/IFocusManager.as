@@ -1,12 +1,14 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
 */
 package feathers.core
 {
+	import starling.display.DisplayObjectContainer;
+
 	/**
 	 * Interface for focus management.
 	 *
@@ -42,5 +44,11 @@ package feathers.core
 		 * @private
 		 */
 		function set focus(value:IFocusDisplayObject):void;
+
+		/**
+		 * The top-level container of the focus manager. This isn't necessarily
+		 * the root of the display list.
+		 */
+		function get root():DisplayObjectContainer;
 	}
 }

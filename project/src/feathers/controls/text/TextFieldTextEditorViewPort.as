@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -79,7 +79,7 @@ package feathers.controls.text
 			{
 				return;
 			}
-			if(isNaN(value))
+			if(value != value) //isNaN
 			{
 				throw new ArgumentError("minVisibleWidth cannot be NaN");
 			}
@@ -109,7 +109,7 @@ package feathers.controls.text
 			{
 				return;
 			}
-			if(isNaN(value))
+			if(value != value) //isNaN
 			{
 				throw new ArgumentError("maxVisibleWidth cannot be NaN");
 			}
@@ -135,7 +135,8 @@ package feathers.controls.text
 		 */
 		public function set visibleWidth(value:Number):void
 		{
-			if(this._visibleWidth == value || (isNaN(value) && isNaN(this._visibleWidth)))
+			if(this._visibleWidth == value ||
+				(value != value && this._visibleWidth != this._visibleWidth)) //isNaN
 			{
 				return;
 			}
@@ -165,7 +166,7 @@ package feathers.controls.text
 			{
 				return;
 			}
-			if(isNaN(value))
+			if(value != value) //isNaN
 			{
 				throw new ArgumentError("minVisibleHeight cannot be NaN");
 			}
@@ -195,7 +196,7 @@ package feathers.controls.text
 			{
 				return;
 			}
-			if(isNaN(value))
+			if(value != value) //isNaN
 			{
 				throw new ArgumentError("maxVisibleHeight cannot be NaN");
 			}
@@ -221,7 +222,8 @@ package feathers.controls.text
 		 */
 		public function set visibleHeight(value:Number):void
 		{
-			if(this._visibleHeight == value || (isNaN(value) && isNaN(this._visibleHeight)))
+			if(this._visibleHeight == value ||
+				(value != value && this._visibleHeight != this._visibleHeight)) //isNaN
 			{
 				return;
 			}
@@ -322,7 +324,7 @@ package feathers.controls.text
 				result = new Point();
 			}
 
-			const needsWidth:Boolean = isNaN(this._visibleWidth);
+			var needsWidth:Boolean = this._visibleWidth != this._visibleWidth; //isNaN
 
 			this.commitStylesAndData(this.measureTextField);
 			var newWidth:Number = this._visibleWidth;
@@ -345,7 +347,7 @@ package feathers.controls.text
 		override protected function refreshSnapshotParameters():void
 		{
 			var textFieldWidth:Number = this._visibleWidth;
-			if(isNaN(textFieldWidth))
+			if(textFieldWidth != textFieldWidth) //isNaN
 			{
 				if(this._maxVisibleWidth < Number.POSITIVE_INFINITY)
 				{
@@ -357,7 +359,7 @@ package feathers.controls.text
 				}
 			}
 			var textFieldHeight:Number = this._visibleHeight;
-			if(isNaN(textFieldHeight))
+			if(textFieldHeight != textFieldHeight) //isNaN
 			{
 				if(this._maxVisibleHeight < Number.POSITIVE_INFINITY)
 				{
@@ -384,14 +386,14 @@ package feathers.controls.text
 		 */
 		override protected function refreshTextFieldSize():void
 		{
-			const oldIgnoreScrolling:Boolean = this._ignoreScrolling;
+			var oldIgnoreScrolling:Boolean = this._ignoreScrolling;
 			this._ignoreScrolling = true;
 			this.textField.width = this._visibleWidth;
 			if(this.textField.height != this._visibleHeight)
 			{
 				this.textField.height = this._visibleHeight;
 			}
-			const scroller:Scroller = Scroller(this.parent);
+			var scroller:Scroller = Scroller(this.parent);
 			this.textField.scrollV = Math.round(1 + ((this.textField.maxScrollV - 1) * (this._verticalScrollPosition / scroller.maxVerticalScrollPosition)));
 			this._ignoreScrolling = oldIgnoreScrolling;
 		}
@@ -420,22 +422,17 @@ package feathers.controls.text
 			HELPER_POINT.x = HELPER_POINT.y = 0;
 			this.getTransformationMatrix(this.stage, HELPER_MATRIX);
 			MatrixUtil.transformCoords(HELPER_MATRIX, 0, 0, HELPER_POINT);
-			const offsetX:Number = Math.round(this._horizontalScrollPosition);
-			const offsetY:Number = Math.round(this._verticalScrollPosition);
-			if(HELPER_POINT.x != this._oldGlobalX || HELPER_POINT.y != this._oldGlobalY)
+			var offsetX:Number = Math.round(this._horizontalScrollPosition);
+			var offsetY:Number = Math.round(this._verticalScrollPosition);
+			var starlingViewPort:Rectangle = Starling.current.viewPort;
+			var nativeScaleFactor:Number = 1;
+			if(Starling.current.supportHighResolutions)
 			{
-				this._oldGlobalX = HELPER_POINT.x;
-				this._oldGlobalY = HELPER_POINT.y;
-				var starlingViewPort:Rectangle = Starling.current.viewPort;
-				var nativeScaleFactor:Number = 1;
-				if(Starling.current.supportHighResolutions)
-				{
-					nativeScaleFactor = Starling.current.nativeStage.contentsScaleFactor;
-				}
-				var scaleFactor:Number = Starling.contentScaleFactor / nativeScaleFactor;
-				this.textField.x = offsetX + Math.round(starlingViewPort.x + (HELPER_POINT.x * scaleFactor));
-				this.textField.y = offsetY + Math.round(starlingViewPort.y + (HELPER_POINT.y * scaleFactor));
+				nativeScaleFactor = Starling.current.nativeStage.contentsScaleFactor;
 			}
+			var scaleFactor:Number = Starling.contentScaleFactor / nativeScaleFactor;
+			this.textField.x = offsetX + Math.round(starlingViewPort.x + (HELPER_POINT.x * scaleFactor));
+			this.textField.y = offsetY + Math.round(starlingViewPort.y + (HELPER_POINT.y * scaleFactor));
 			this.textField.rotation = matrixToRotation(HELPER_MATRIX) * 180 / Math.PI;
 			this.textField.scaleX = matrixToScaleX(HELPER_MATRIX);
 			this.textField.scaleY = matrixToScaleY(HELPER_MATRIX);
@@ -455,7 +452,7 @@ package feathers.controls.text
 		 */
 		override protected function textField_focusInHandler(event:FocusEvent):void
 		{
-			const oldIgnoreScrolling:Boolean = this._ignoreScrolling;
+			var oldIgnoreScrolling:Boolean = this._ignoreScrolling;
 			this._ignoreScrolling = true;
 			this.textField.height = this._visibleHeight;
 			this._ignoreScrolling = oldIgnoreScrolling;
@@ -487,10 +484,10 @@ package feathers.controls.text
 			{
 				return;
 			}
-			const scroller:Scroller = Scroller(this.parent);
+			var scroller:Scroller = Scroller(this.parent);
 			if(scroller.maxVerticalScrollPosition > 0 && this.textField.maxScrollV > 1)
 			{
-				const calculatedVerticalScrollPosition:Number = scroller.maxVerticalScrollPosition * (scrollV - 1) / (this.textField.maxScrollV - 1);
+				var calculatedVerticalScrollPosition:Number = scroller.maxVerticalScrollPosition * (scrollV - 1) / (this.textField.maxScrollV - 1);
 				scroller.verticalScrollPosition = roundToNearest(calculatedVerticalScrollPosition, this._scrollStep);
 			}
 		}

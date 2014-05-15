@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -16,6 +16,21 @@ package feathers.data
 	 * Dispatched when the underlying data source changes and the ui will
 	 * need to redraw the data.
 	 *
+	 * <p>The properties of the event object have the following values:</p>
+	 * <table class="innertable">
+	 * <tr><th>Property</th><th>Value</th></tr>
+	 * <tr><td><code>bubbles</code></td><td>false</td></tr>
+	 * <tr><td><code>currentTarget</code></td><td>The Object that defines the
+	 *   event listener that handles the event. For example, if you use
+	 *   <code>myButton.addEventListener()</code> to register an event listener,
+	 *   myButton is the value of the <code>currentTarget</code>.</td></tr>
+	 * <tr><td><code>data</code></td><td>null</td></tr>
+	 * <tr><td><code>target</code></td><td>The Object that dispatched the event;
+	 *   it is not always the Object listening for the event. Use the
+	 *   <code>currentTarget</code> property to always access the Object
+	 *   listening for the event.</td></tr>
+	 * </table>
+	 *
 	 * @eventType starling.events.Event.CHANGE
 	 */
 	[Event(name="change",type="starling.events.Event")]
@@ -24,6 +39,21 @@ package feathers.data
 	 * Dispatched when the collection has changed drastically, such as when
 	 * the underlying data source is replaced completely.
 	 *
+	 * <p>The properties of the event object have the following values:</p>
+	 * <table class="innertable">
+	 * <tr><th>Property</th><th>Value</th></tr>
+	 * <tr><td><code>bubbles</code></td><td>false</td></tr>
+	 * <tr><td><code>currentTarget</code></td><td>The Object that defines the
+	 *   event listener that handles the event. For example, if you use
+	 *   <code>myButton.addEventListener()</code> to register an event listener,
+	 *   myButton is the value of the <code>currentTarget</code>.</td></tr>
+	 * <tr><td><code>data</code></td><td>null</td></tr>
+	 * <tr><td><code>target</code></td><td>The Object that dispatched the event;
+	 *   it is not always the Object listening for the event. Use the
+	 *   <code>currentTarget</code> property to always access the Object
+	 *   listening for the event.</td></tr>
+	 * </table>
+	 *
 	 * @eventType feathers.events.CollectionEventType.RESET
 	 */
 	[Event(name="reset",type="starling.events.Event")]
@@ -31,8 +61,21 @@ package feathers.data
 	/**
 	 * Dispatched when an item is added to the collection.
 	 *
-	 * <p>The <code>data</code> property of the event is the index of the
-	 * item that has been updated. It is of type <code>int</code>.</p>
+	 * <p>The properties of the event object have the following values:</p>
+	 * <table class="innertable">
+	 * <tr><th>Property</th><th>Value</th></tr>
+	 * <tr><td><code>bubbles</code></td><td>false</td></tr>
+	 * <tr><td><code>currentTarget</code></td><td>The Object that defines the
+	 *   event listener that handles the event. For example, if you use
+	 *   <code>myButton.addEventListener()</code> to register an event listener,
+	 *   myButton is the value of the <code>currentTarget</code>.</td></tr>
+	 * <tr><td><code>data</code></td><td>The index of the item that has been
+	 * added. It is of type <code>int</code>.</td></tr>
+	 * <tr><td><code>target</code></td><td>The Object that dispatched the event;
+	 *   it is not always the Object listening for the event. Use the
+	 *   <code>currentTarget</code> property to always access the Object
+	 *   listening for the event.</td></tr>
+	 * </table>
 	 *
 	 * @eventType feathers.events.CollectionEventType.ADD_ITEM
 	 */
@@ -41,8 +84,21 @@ package feathers.data
 	/**
 	 * Dispatched when an item is removed from the collection.
 	 *
-	 * <p>The <code>data</code> property of the event is the index of the
-	 * item that has been updated. It is of type <code>int</code>.</p>
+	 * <p>The properties of the event object have the following values:</p>
+	 * <table class="innertable">
+	 * <tr><th>Property</th><th>Value</th></tr>
+	 * <tr><td><code>bubbles</code></td><td>false</td></tr>
+	 * <tr><td><code>currentTarget</code></td><td>The Object that defines the
+	 *   event listener that handles the event. For example, if you use
+	 *   <code>myButton.addEventListener()</code> to register an event listener,
+	 *   myButton is the value of the <code>currentTarget</code>.</td></tr>
+	 * <tr><td><code>data</code></td><td>The index of the item that has been
+	 * removed. It is of type <code>int</code>.</td></tr>
+	 * <tr><td><code>target</code></td><td>The Object that dispatched the event;
+	 *   it is not always the Object listening for the event. Use the
+	 *   <code>currentTarget</code> property to always access the Object
+	 *   listening for the event.</td></tr>
+	 * </table>
 	 *
 	 * @eventType feathers.events.CollectionEventType.REMOVE_ITEM
 	 */
@@ -51,8 +107,21 @@ package feathers.data
 	/**
 	 * Dispatched when an item is replaced in the collection.
 	 *
-	 * <p>The <code>data</code> property of the event is the index of the
-	 * item that has been updated. It is of type <code>int</code>.</p>
+	 * <p>The properties of the event object have the following values:</p>
+	 * <table class="innertable">
+	 * <tr><th>Property</th><th>Value</th></tr>
+	 * <tr><td><code>bubbles</code></td><td>false</td></tr>
+	 * <tr><td><code>currentTarget</code></td><td>The Object that defines the
+	 *   event listener that handles the event. For example, if you use
+	 *   <code>myButton.addEventListener()</code> to register an event listener,
+	 *   myButton is the value of the <code>currentTarget</code>.</td></tr>
+	 * <tr><td><code>data</code></td><td>The index of the item that has been
+	 * replaced. It is of type <code>int</code>.</td></tr>
+	 * <tr><td><code>target</code></td><td>The Object that dispatched the event;
+	 *   it is not always the Object listening for the event. Use the
+	 *   <code>currentTarget</code> property to always access the Object
+	 *   listening for the event.</td></tr>
+	 * </table>
 	 *
 	 * @eventType feathers.events.CollectionEventType.REPLACE_ITEM
 	 */
@@ -67,8 +136,21 @@ package feathers.data
 	 * <p>In general, it's better for the items themselves to dispatch events
 	 * or signals when their properties change.</p>
 	 *
-	 * <p>The <code>data</code> property of the event is the index of the
-	 * item that has been updated. It is of type <code>int</code>.</p>
+	 * <p>The properties of the event object have the following values:</p>
+	 * <table class="innertable">
+	 * <tr><th>Property</th><th>Value</th></tr>
+	 * <tr><td><code>bubbles</code></td><td>false</td></tr>
+	 * <tr><td><code>currentTarget</code></td><td>The Object that defines the
+	 *   event listener that handles the event. For example, if you use
+	 *   <code>myButton.addEventListener()</code> to register an event listener,
+	 *   myButton is the value of the <code>currentTarget</code>.</td></tr>
+	 * <tr><td><code>data</code></td><td>The index of the item that has been
+	 * updated. It is of type <code>int</code>.</td></tr>
+	 * <tr><td><code>target</code></td><td>The Object that dispatched the event;
+	 *   it is not always the Object listening for the event. Use the
+	 *   <code>currentTarget</code> property to always access the Object
+	 *   listening for the event.</td></tr>
+	 * </table>
 	 *
 	 * @eventType feathers.events.CollectionEventType.UPDATE_ITEM
 	 */
@@ -245,7 +327,7 @@ package feathers.data
 		 */
 		public function removeItemAt(index:int):Object
 		{
-			const item:Object = this._dataDescriptor.removeItemAt(this._data, index);
+			var item:Object = this._dataDescriptor.removeItemAt(this._data, index);
 			this.dispatchEventWith(Event.CHANGE);
 			this.dispatchEventWith(CollectionEventType.REMOVE_ITEM, false, index);
 			return item;
@@ -256,7 +338,7 @@ package feathers.data
 		 */
 		public function removeItem(item:Object):void
 		{
-			const index:int = this.getItemIndex(item);
+			var index:int = this.getItemIndex(item);
 			if(index >= 0)
 			{
 				this.removeItemAt(index);
@@ -308,7 +390,7 @@ package feathers.data
 		 */
 		public function addAll(collection:ListCollection):void
 		{
-			const otherCollectionLength:int = collection.length;
+			var otherCollectionLength:int = collection.length;
 			for(var i:int = 0; i < otherCollectionLength; i++)
 			{
 				var item:Object = collection.getItemAt(i);
@@ -322,7 +404,7 @@ package feathers.data
 		 */
 		public function addAllAt(collection:ListCollection, index:int):void
 		{
-			const otherCollectionLength:int = collection.length;
+			var otherCollectionLength:int = collection.length;
 			var currentIndex:int = index;
 			for(var i:int = 0; i < otherCollectionLength; i++)
 			{

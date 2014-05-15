@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -9,6 +9,7 @@ package feathers.controls.text
 {
 	import feathers.core.FeathersControl;
 	import feathers.core.ITextRenderer;
+	import feathers.skins.IStyleProvider;
 
 	import flash.display.BitmapData;
 	import flash.geom.Matrix;
@@ -41,7 +42,7 @@ package feathers.controls.text
 	 * caution when displaying a lot of text.</p>
 	 *
 	 * @see http://wiki.starling-framework.org/feathers/text-renderers
-	 * @see flash.text.TextField
+	 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html flash.text.TextField
 	 */
 	public class TextFieldTextRenderer extends FeathersControl implements ITextRenderer
 	{
@@ -56,10 +57,20 @@ package feathers.controls.text
 		private static const HELPER_MATRIX:Matrix = new Matrix();
 
 		/**
+		 * The default <code>IStyleProvider</code> for all <code>TextFieldTextRenderer</code>
+		 * components.
+		 *
+		 * @default null
+		 * @see feathers.core.FeathersControl#styleProvider
+		 */
+		public static var styleProvider:IStyleProvider;
+
+		/**
 		 * Constructor.
 		 */
 		public function TextFieldTextRenderer()
 		{
+			super();
 			this.isQuickHitAreaEnabled = true;
 			this.addEventListener(Event.ADDED_TO_STAGE, addedToStageHandler);
 			this.addEventListener(Event.REMOVED_FROM_STAGE, removedFromStageHandler);
@@ -111,6 +122,19 @@ package feathers.controls.text
 		/**
 		 * @private
 		 */
+		protected var _hasMeasured:Boolean = false;
+
+		/**
+		 * @private
+		 */
+		override protected function get defaultStyleProvider():IStyleProvider
+		{
+			return TextFieldTextRenderer.styleProvider;
+		}
+
+		/**
+		 * @private
+		 */
 		protected var _text:String = "";
 
 		/**
@@ -122,6 +146,8 @@ package feathers.controls.text
 		 * textRenderer.text = "Lorem ipsum";</listing>
 		 *
 		 * @default ""
+		 *
+		 * @see #isHTML
 		 */
 		public function get text():String
 		{
@@ -157,11 +183,13 @@ package feathers.controls.text
 		 * <p>In the following example, the text is displayed as HTML:</p>
 		 *
 		 * <listing version="3.0">
-		 * textRenderer.isHTML = true;</listing>
+		 * textRenderer.isHTML = true;
+		 * textRenderer.text = "&lt;span class='heading'&gt;hello&lt;/span&gt; world!";</listing>
 		 *
 		 * @default false
 		 *
-		 * @see flash.text.TextField#htmlText
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#htmlText flash.text.TextField.htmlText
+		 * @see #text
 		 */
 		public function get isHTML():Boolean
 		{
@@ -197,7 +225,7 @@ package feathers.controls.text
 		 * @default null
 		 *
 		 * @see #disabledTextFormat
-		 * @see flash.text.TextFormat
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextFormat.html flash.text.TextFormat
 		 */
 		public function get textFormat():TextFormat
 		{
@@ -234,7 +262,7 @@ package feathers.controls.text
 		 * @default null
 		 *
 		 * @see #textFormat
-		 * @see flash.text.TextFormat
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextFormat.html flash.text.TextFormat
 		 */
 		public function get disabledTextFormat():TextFormat
 		{
@@ -262,7 +290,7 @@ package feathers.controls.text
 		/**
 		 * The <code>StyleSheet</code> object to pass to the TextField.
 		 *
-		 * <p>In the following example, the text is changed:</p>
+		 * <p>In the following example, a style sheet is applied:</p>
 		 *
 		 * <listing version="3.0">
 		 * var style:StyleSheet = new StyleSheet();
@@ -277,11 +305,14 @@ package feathers.controls.text
 		 * style.setStyle("body", body);
 		 *
 		 * textRenderer.styleSheet = style;
-		 * textRenderer.htmlText = "<body><span class='heading'>Hello </span>World...</body>";</listing>
+		 * textRenderer.isHTML = true;
+		 * textRenderer.text = "&lt;body&gt;&lt;span class='heading'&gt;Hello&lt;/span&gt; World...&lt;/body&gt;";</listing>
 		 *
 		 * @default null
 		 *
-		 * @see flash.text.StyleSheet
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#styleSheet Full description of flash.text.TextField.styleSheet in Adobe's Flash Platform API Reference
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/StyleSheet.html flash.text.StyleSheet
+		 * @see #isHTML
 		 */
 		public function get styleSheet():StyleSheet
 		{
@@ -307,7 +338,8 @@ package feathers.controls.text
 		protected var _embedFonts:Boolean = false;
 
 		/**
-		 * Determines if the TextField should use an embedded font or not.
+		 * Determines if the TextField should use an embedded font or not. If
+		 * the specified font is not embedded, the text is not displayed.
 		 *
 		 * <p>In the following example, the font is embedded:</p>
 		 *
@@ -315,6 +347,8 @@ package feathers.controls.text
 		 * textRenderer.embedFonts = true;</listing>
 		 *
 		 * @default false
+		 *
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#embedFonts Full description of flash.text.TextField.embedFonts in Adobe's Flash Platform API Reference
 		 */
 		public function get embedFonts():Boolean
 		{
@@ -357,6 +391,8 @@ package feathers.controls.text
 		 * textRenderer.wordWrap = true;</listing>
 		 *
 		 * @default false
+		 *
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#wordWrap Full description of flash.text.TextField.wordWrap in Adobe's Flash Platform API Reference
 		 */
 		public function get wordWrap():Boolean
 		{
@@ -413,7 +449,8 @@ package feathers.controls.text
 		private var _antiAliasType:String = AntiAliasType.ADVANCED;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * The type of anti-aliasing used for this text field, defined as
+		 * constants in the <code>flash.text.AntiAliasType</code> class.
 		 *
 		 * <p>In the following example, the anti-alias type is changed:</p>
 		 *
@@ -422,7 +459,8 @@ package feathers.controls.text
 		 *
 		 * @default flash.text.AntiAliasType.ADVANCED
 		 *
-		 * @see flash.text.TextField#antiAliasType
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#antiAliasType Full description of flash.text.TextField.antiAliasType in Adobe's Flash Platform API Reference
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/AntiAliasType.html flash.text.AntiAliasType
 		 */
 		public function get antiAliasType():String
 		{
@@ -448,16 +486,19 @@ package feathers.controls.text
 		private var _background:Boolean = false;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * Specifies whether the text field has a background fill. Use the
+		 * <code>backgroundColor</code> property to set the background color of
+		 * a text field.
 		 *
 		 * <p>In the following example, the background is enabled:</p>
 		 *
 		 * <listing version="3.0">
-		 * textRenderer.background = true;</listing>
+		 * textRenderer.background = true;
+		 * textRenderer.backgroundColor = 0xff0000;</listing>
 		 *
 		 * @default false
 		 *
-		 * @see flash.text.TextField#background
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#background Full description of flash.text.TextField.background in Adobe's Flash Platform API Reference
 		 * @see #backgroundColor
 		 */
 		public function get background():Boolean
@@ -484,16 +525,18 @@ package feathers.controls.text
 		private var _backgroundColor:uint = 0xffffff;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * The color of the text field background that is displayed if the
+		 * <code>background</code> property is set to <code>true</code>.
 		 *
 		 * <p>In the following example, the background color is changed:</p>
 		 *
 		 * <listing version="3.0">
+		 * textRenderer.background = true;
 		 * textRenderer.backgroundColor = 0xff000ff;</listing>
 		 *
 		 * @default 0xffffff
 		 *
-		 * @see flash.text.TextField#backgroundColor
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#backgroundColor Full description of flash.text.TextField.backgroundColor in Adobe's Flash Platform API Reference
 		 * @see #background
 		 */
 		public function get backgroundColor():uint
@@ -520,16 +563,18 @@ package feathers.controls.text
 		private var _border:Boolean = false;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * Specifies whether the text field has a border. Use the
+		 * <code>borderColor</code> property to set the border color.
 		 *
 		 * <p>In the following example, the border is enabled:</p>
 		 *
 		 * <listing version="3.0">
-		 * textRenderer.border = true;</listing>
+		 * textRenderer.border = true;
+		 * textRenderer.borderColor = 0xff0000;</listing>
 		 *
 		 * @default false
 		 *
-		 * @see flash.text.TextField#border
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#border Full description of flash.text.TextField.border in Adobe's Flash Platform API Reference
 		 * @see #borderColor
 		 */
 		public function get border():Boolean
@@ -556,16 +601,18 @@ package feathers.controls.text
 		private var _borderColor:uint = 0x000000;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * The color of the text field border that is displayed if the
+		 * <code>border</code> property is set to <code>true</code>.
 		 *
 		 * <p>In the following example, the border color is changed:</p>
 		 *
 		 * <listing version="3.0">
+		 * textRenderer.border = true;
 		 * textRenderer.borderColor = 0xff00ff;</listing>
 		 *
 		 * @default 0x000000
 		 *
-		 * @see flash.text.TextField#borderColor
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#borderColor Full description of flash.text.TextField.borderColor in Adobe's Flash Platform API Reference
 		 * @see #border
 		 */
 		public function get borderColor():uint
@@ -592,7 +639,8 @@ package feathers.controls.text
 		private var _condenseWhite:Boolean = false;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * A boolean value that specifies whether extra white space (spaces,
+		 * line breaks, and so on) in a text field with HTML text is removed.
 		 *
 		 * <p>In the following example, whitespace is condensed:</p>
 		 *
@@ -601,7 +649,8 @@ package feathers.controls.text
 		 *
 		 * @default false
 		 *
-		 * @see flash.text.TextField#condenseWhite
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#condenseWhite Full description of flash.text.TextField.condenseWhite in Adobe's Flash Platform API Reference
+		 * @see #isHTML
 		 */
 		public function get condenseWhite():Boolean
 		{
@@ -627,7 +676,9 @@ package feathers.controls.text
 		private var _displayAsPassword:Boolean = false;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * Specifies whether the text field is a password text field that hides
+		 * the input characters using asterisks instead of the actual
+		 * characters.
 		 *
 		 * <p>In the following example, the text is displayed as a password:</p>
 		 *
@@ -636,7 +687,7 @@ package feathers.controls.text
 		 *
 		 * @default false
 		 *
-		 * @see flash.text.TextField#displayAsPassword
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#displayAsPassword Full description of flash.text.TextField.displayAsPassword in Adobe's Flash Platform API Reference
 		 */
 		public function get displayAsPassword():Boolean
 		{
@@ -662,7 +713,11 @@ package feathers.controls.text
 		private var _gridFitType:String = GridFitType.PIXEL;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * Determines whether Flash Player forces strong horizontal and vertical
+		 * lines to fit to a pixel or subpixel grid, or not at all using the
+		 * constants defined in the <code>flash.text.GridFitType</code> class.
+		 * This property applies only if the <code>antiAliasType</code> property
+		 * of the text field is set to <code>flash.text.AntiAliasType.ADVANCED</code>.
 		 *
 		 * <p>In the following example, the grid fit type is changed:</p>
 		 *
@@ -671,7 +726,9 @@ package feathers.controls.text
 		 *
 		 * @default flash.text.GridFitType.PIXEL
 		 *
-		 * @see flash.text.TextField#gridFitType
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#gridFitType Full description of flash.text.TextField.gridFitType in Adobe's Flash Platform API Reference
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/GridFitType.html flash.text.GridFitType
+		 * @see #antiAliasType
 		 */
 		public function get gridFitType():String
 		{
@@ -697,7 +754,11 @@ package feathers.controls.text
 		private var _sharpness:Number = 0;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * The sharpness of the glyph edges in this text field. This property
+		 * applies only if the <code>antiAliasType</code> property of the text
+		 * field is set to <code>flash.text.AntiAliasType.ADVANCED</code>. The
+		 * range for <code>sharpness</code> is a number from <code>-400</code>
+		 * to <code>400</code>.
 		 *
 		 * <p>In the following example, the sharpness is changed:</p>
 		 *
@@ -706,7 +767,8 @@ package feathers.controls.text
 		 *
 		 * @default 0
 		 *
-		 * @see flash.text.TextField#sharpness
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#sharpness Full description of flash.text.TextField.sharpness in Adobe's Flash Platform API Reference
+		 * @see #antiAliasType
 		 */
 		public function get sharpness():Number
 		{
@@ -732,7 +794,11 @@ package feathers.controls.text
 		private var _thickness:Number = 0;
 
 		/**
-		 * Same as the TextField property with the same name.
+		 * The thickness of the glyph edges in this text field. This property
+		 * applies only if the <code>antiAliasType</code> property is set to
+		 * <code>flash.text.AntiAliasType.ADVANCED</code>. The range for
+		 * <code>thickness</code> is a number from <code>-200</code> to
+		 * <code>200</code>.
 		 *
 		 * <p>In the following example, the thickness is changed:</p>
 		 *
@@ -741,7 +807,8 @@ package feathers.controls.text
 		 *
 		 * @default 0
 		 *
-		 * @see flash.text.TextField#thickness
+		 * @see http://help.adobe.com/en_US/FlashPlatform/reference/actionscript/3/flash/text/TextField.html#thickness Full description of flash.text.TextField.thickness in Adobe's Flash Platform API Reference
+		 * @see #antiAliasType
 		 */
 		public function get thickness():Number
 		{
@@ -880,8 +947,8 @@ package feathers.controls.text
 				return result;
 			}
 
-			const needsWidth:Boolean = isNaN(this.explicitWidth);
-			const needsHeight:Boolean = isNaN(this.explicitHeight);
+			var needsWidth:Boolean = this.explicitWidth != this.explicitWidth; //isNaN
+			var needsHeight:Boolean = this.explicitHeight != this.explicitHeight; //isNaN
 			if(!needsWidth && !needsHeight)
 			{
 				result.x = this.explicitWidth;
@@ -919,6 +986,7 @@ package feathers.controls.text
 
 			this.commit();
 
+			this._hasMeasured = false;
 			sizeInvalid = this.autoSizeIfNeeded() || sizeInvalid;
 
 			this.layout(sizeInvalid);
@@ -929,9 +997,9 @@ package feathers.controls.text
 		 */
 		protected function commit():void
 		{
-			const stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
-			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
-			const stateInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STATE);
+			var stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
+			var dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
+			var stateInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STATE);
 
 			if(stylesInvalid)
 			{
@@ -989,8 +1057,8 @@ package feathers.controls.text
 				result = new Point();
 			}
 
-			const needsWidth:Boolean = isNaN(this.explicitWidth);
-			const needsHeight:Boolean = isNaN(this.explicitHeight);
+			var needsWidth:Boolean = this.explicitWidth != this.explicitWidth; //isNaN
+			var needsHeight:Boolean = this.explicitHeight != this.explicitHeight; //isNaN
 
 			this.textField.autoSize = TextFieldAutoSize.LEFT;
 			this.textField.wordWrap = false;
@@ -1018,9 +1086,16 @@ package feathers.controls.text
 					newWidth = this._maxWidth;
 				}
 			}
-
-			this.textField.width = newWidth;
-			this.textField.wordWrap = this._wordWrap;
+			//and this is a workaround for an issue where flash.text.TextField
+			//will wrap the last word when you pass the value returned by the
+			//width getter (when TextFieldAutoSize.LEFT is used) to the width
+			//setter. In other words, the value technically isn't changing, but
+			//TextField behaves differently.
+			if(!needsWidth || this.textField.width > newWidth)
+			{
+				this.textField.width = newWidth;
+				this.textField.wordWrap = this._wordWrap;
+			}
 			var newHeight:Number = this.explicitHeight;
 			if(needsHeight)
 			{
@@ -1045,6 +1120,7 @@ package feathers.controls.text
 			result.x = newWidth;
 			result.y = newHeight;
 
+			this._hasMeasured = true;
 			return result;
 		}
 
@@ -1053,9 +1129,22 @@ package feathers.controls.text
 		 */
 		protected function layout(sizeInvalid:Boolean):void
 		{
-			const stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
-			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
+			var stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
+			var dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
 
+			//if measure() isn't called, we need to apply the same workaround
+			//for the flash.text.TextField bug with wordWrap.
+			if(!this._hasMeasured && this._wordWrap && this.explicitWidth != this.explicitWidth)
+			{
+				this.textField.autoSize = TextFieldAutoSize.LEFT;
+				this.textField.wordWrap = false;
+				if(this.textField.width > this.actualWidth)
+				{
+					this.textField.wordWrap = true;
+				}
+				this.textField.autoSize = TextFieldAutoSize.NONE;
+				this.textField.width = this.actualWidth;
+			}
 			if(sizeInvalid)
 			{
 				this.textField.width = this.actualWidth;
@@ -1078,7 +1167,7 @@ package feathers.controls.text
 				{
 					this._snapshotHeight = getNextPowerOfTwo(rectangleSnapshotHeight);
 				}
-				const textureRoot:ConcreteTexture = this.textSnapshot ? this.textSnapshot.texture.root : null;
+				var textureRoot:ConcreteTexture = this.textSnapshot ? this.textSnapshot.texture.root : null;
 				this._needsNewTexture = this._needsNewTexture || !this.textSnapshot || this._snapshotWidth != textureRoot.width || this._snapshotHeight != textureRoot.height;
 			}
 
@@ -1091,7 +1180,7 @@ package feathers.controls.text
 			{
 				this._previousTextFieldWidth = this.actualWidth;
 				this._previousTextFieldHeight = this.actualHeight;
-				const hasText:Boolean = this._text.length > 0;
+				var hasText:Boolean = this._text.length > 0;
 				if(hasText)
 				{
 					//we need to wait a frame for the TextField to render
@@ -1123,8 +1212,8 @@ package feathers.controls.text
 		 */
 		protected function autoSizeIfNeeded():Boolean
 		{
-			const needsWidth:Boolean = isNaN(this.explicitWidth);
-			const needsHeight:Boolean = isNaN(this.explicitHeight);
+			var needsWidth:Boolean = this.explicitWidth != this.explicitWidth; //isNaN
+			var needsHeight:Boolean = this.explicitHeight != this.explicitHeight; //isNaN
 			if(!needsWidth && !needsHeight)
 			{
 				return false;
@@ -1151,8 +1240,9 @@ package feathers.controls.text
 			{
 				return;
 			}
+			var scaleFactor:Number = Starling.contentScaleFactor;
 			HELPER_MATRIX.identity();
-			HELPER_MATRIX.scale(Starling.contentScaleFactor, Starling.contentScaleFactor);
+			HELPER_MATRIX.scale(scaleFactor, scaleFactor);
 			var totalBitmapWidth:Number = this._snapshotWidth;
 			var totalBitmapHeight:Number = this._snapshotHeight;
 			var xPosition:Number = 0;
@@ -1192,7 +1282,7 @@ package feathers.controls.text
 					var newTexture:Texture;
 					if(!this.textSnapshot || this._needsNewTexture)
 					{
-						newTexture = Texture.fromBitmapData(bitmapData, false, false, Starling.contentScaleFactor);
+						newTexture = Texture.fromBitmapData(bitmapData, false, false, scaleFactor);
 						newTexture.root.onRestore = texture_onRestore;
 					}
 					var snapshot:Image = null;
@@ -1228,7 +1318,7 @@ package feathers.controls.text
 						else
 						{
 							//this is faster, if we haven't resized the bitmapdata
-							const existingTexture:Texture = snapshot.texture;
+							var existingTexture:Texture = snapshot.texture;
 							existingTexture.root.uploadBitmapData(bitmapData);
 						}
 					}
@@ -1240,8 +1330,8 @@ package feathers.controls.text
 					{
 						this.textSnapshot = snapshot;
 					}
-					snapshot.x = xPosition;
-					snapshot.y = yPosition;
+					snapshot.x = xPosition / scaleFactor;
+					snapshot.y = yPosition / scaleFactor;
 					snapshotIndex++;
 					yPosition += currentBitmapHeight;
 					totalBitmapHeight -= currentBitmapHeight;

@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -155,7 +155,7 @@ package feathers.motion.transitions
 		{
 			if(this._savedOtherTarget)
 			{
-				const newScreen:DisplayObject = DisplayObject(this._activeTransition.target);
+				var newScreen:DisplayObject = DisplayObject(this._activeTransition.target);
 				this._savedOtherTarget.alpha = 1 - newScreen.alpha;
 			}
 		}

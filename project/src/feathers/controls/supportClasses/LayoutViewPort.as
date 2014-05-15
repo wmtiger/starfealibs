@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -8,7 +8,7 @@ accordance with the terms of the accompanying license agreement.
 package feathers.controls.supportClasses
 {
 	import feathers.controls.LayoutGroup;
-	import feathers.core.IFeathersControl;
+	import feathers.core.IValidating;
 
 	import starling.display.DisplayObject;
 
@@ -16,7 +16,7 @@ package feathers.controls.supportClasses
 	 * @private
 	 * Used internally by ScrollContainer. Not meant to be used on its own.
 	 */
-	public final class LayoutViewPort extends LayoutGroup implements IViewPort
+	public class LayoutViewPort extends LayoutGroup implements IViewPort
 	{
 		public function LayoutViewPort()
 		{
@@ -35,7 +35,7 @@ package feathers.controls.supportClasses
 			{
 				return;
 			}
-			if(isNaN(value))
+			if(value != value) //isNaN
 			{
 				throw new ArgumentError("minVisibleWidth cannot be NaN");
 			}
@@ -56,7 +56,7 @@ package feathers.controls.supportClasses
 			{
 				return;
 			}
-			if(isNaN(value))
+			if(value != value) //isNaN
 			{
 				throw new ArgumentError("maxVisibleWidth cannot be NaN");
 			}
@@ -73,7 +73,8 @@ package feathers.controls.supportClasses
 
 		public function set visibleWidth(value:Number):void
 		{
-			if(this._visibleWidth == value || (isNaN(value) && isNaN(this._visibleWidth)))
+			if(this._visibleWidth == value ||
+				(value != value && this._visibleWidth != this._visibleWidth)) //isNaN
 			{
 				return;
 			}
@@ -94,7 +95,7 @@ package feathers.controls.supportClasses
 			{
 				return;
 			}
-			if(isNaN(value))
+			if(value != value) //isNaN
 			{
 				throw new ArgumentError("minVisibleHeight cannot be NaN");
 			}
@@ -115,7 +116,7 @@ package feathers.controls.supportClasses
 			{
 				return;
 			}
-			if(isNaN(value))
+			if(value != value) //isNaN
 			{
 				throw new ArgumentError("maxVisibleHeight cannot be NaN");
 			}
@@ -132,7 +133,8 @@ package feathers.controls.supportClasses
 
 		public function set visibleHeight(value:Number):void
 		{
-			if(this._visibleHeight == value || (isNaN(value) && isNaN(this._visibleHeight)))
+			if(this._visibleHeight == value ||
+				(value != value && this._visibleHeight != this._visibleHeight)) //isNaN
 			{
 				return;
 			}
@@ -206,9 +208,9 @@ package feathers.controls.supportClasses
 
 		override protected function draw():void
 		{
-			const layoutInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_LAYOUT);
-			const sizeInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SIZE);
-			const scrollInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SCROLL);
+			var layoutInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_LAYOUT);
+			var sizeInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SIZE);
+			var scrollInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SCROLL);
 
 			super.draw();
 
@@ -240,34 +242,46 @@ package feathers.controls.supportClasses
 		{
 			var minX:Number = 0;
 			var minY:Number = 0;
-			var maxX:Number = isNaN(this.viewPortBounds.explicitWidth) ? 0 : this.viewPortBounds.explicitWidth;
-			var maxY:Number = isNaN(this.viewPortBounds.explicitHeight) ? 0 : this.viewPortBounds.explicitHeight;
+			var maxX:Number = this.viewPortBounds.explicitWidth;
+			if(maxX != maxX) //isNaN
+			{
+				maxX = 0;
+			}
+			var maxY:Number = this.viewPortBounds.explicitHeight;
+			if(maxY != maxY) //isNaN
+			{
+				maxY = 0;
+			}
 			this._ignoreChildChanges = true;
-			const itemCount:int = this.items.length;
+			var itemCount:int = this.items.length;
 			for(var i:int = 0; i < itemCount; i++)
 			{
 				var item:DisplayObject = this.items[i];
-				if(item is IFeathersControl)
+				if(item is IValidating)
 				{
-					IFeathersControl(item).validate();
+					IValidating(item).validate();
 				}
 				var itemX:Number = item.x;
 				var itemY:Number = item.y;
 				var itemMaxX:Number = itemX + item.width;
 				var itemMaxY:Number = itemY + item.height;
-				if(!isNaN(itemX) && itemX < minX)
+				if(itemX == itemX && //!isNaN
+					itemX < minX)
 				{
 					minX = itemX;
 				}
-				if(!isNaN(itemY) && itemY < minY)
+				if(itemY == itemY && //!isNaN
+					itemY < minY)
 				{
 					minY = itemY;
 				}
-				if(!isNaN(itemMaxX) && itemMaxX > maxX)
+				if(itemMaxX == itemMaxX && //!isNaN
+					itemMaxX > maxX)
 				{
 					maxX = itemMaxX;
 				}
-				if(!isNaN(itemMaxY) && itemMaxY > maxY)
+				if(itemMaxY == itemMaxY && //!isNaN
+					itemMaxY > maxY)
 				{
 					maxY = itemMaxY;
 				}
@@ -278,7 +292,7 @@ package feathers.controls.supportClasses
 			var maxWidth:Number = this.viewPortBounds.maxWidth;
 			var minHeight:Number = this.viewPortBounds.minHeight;
 			var maxHeight:Number = this.viewPortBounds.maxHeight;
-			var calculatedWidth:Number = maxX;
+			var calculatedWidth:Number = maxX - minX;
 			if(calculatedWidth < minWidth)
 			{
 				calculatedWidth = minWidth;
@@ -287,7 +301,7 @@ package feathers.controls.supportClasses
 			{
 				calculatedWidth = maxWidth;
 			}
-			var calculatedHeight:Number = maxY;
+			var calculatedHeight:Number = maxY - minY;
 			if(calculatedHeight < minHeight)
 			{
 				calculatedHeight = minHeight;

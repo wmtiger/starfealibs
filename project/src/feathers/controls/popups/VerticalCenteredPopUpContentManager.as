@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -8,6 +8,7 @@ accordance with the terms of the accompanying license agreement.
 package feathers.controls.popups
 {
 	import feathers.core.IFeathersControl;
+	import feathers.core.IValidating;
 	import feathers.core.PopUpManager;
 	import feathers.events.FeathersEventType;
 	import feathers.utils.display.getDisplayObjectDepthFromStage;
@@ -183,12 +184,12 @@ package feathers.controls.popups
 			PopUpManager.addPopUp(this.content, true, false);
 			if(this.content is IFeathersControl)
 			{
-				const uiContent:IFeathersControl = IFeathersControl(this.content);
 				this.content.addEventListener(FeathersEventType.RESIZE, content_resizeHandler);
 			}
 			this.layout();
-			Starling.current.stage.addEventListener(TouchEvent.TOUCH, stage_touchHandler);
-			Starling.current.stage.addEventListener(ResizeEvent.RESIZE, stage_resizeHandler);
+			var stage:Stage = Starling.current.stage;
+			stage.addEventListener(TouchEvent.TOUCH, stage_touchHandler);
+			stage.addEventListener(ResizeEvent.RESIZE, stage_resizeHandler);
 
 			//using priority here is a hack so that objects higher up in the
 			//display list have a chance to cancel the event first.
@@ -205,8 +206,9 @@ package feathers.controls.popups
 			{
 				return;
 			}
-			Starling.current.stage.removeEventListener(TouchEvent.TOUCH, stage_touchHandler);
-			Starling.current.stage.removeEventListener(ResizeEvent.RESIZE, stage_resizeHandler);
+			var stage:Stage = Starling.current.stage;
+			stage.removeEventListener(TouchEvent.TOUCH, stage_touchHandler);
+			stage.removeEventListener(ResizeEvent.RESIZE, stage_resizeHandler);
 			Starling.current.nativeStage.removeEventListener(KeyboardEvent.KEY_DOWN, nativeStage_keyDownHandler);
 			if(this.content is IFeathersControl)
 			{
@@ -230,22 +232,28 @@ package feathers.controls.popups
 		 */
 		protected function layout():void
 		{
-			const maxWidth:Number = Math.min(Starling.current.stage.stageWidth, Starling.current.stage.stageHeight) - this.marginLeft - this.marginRight;
-			const maxHeight:Number = Starling.current.stage.stageHeight - this.marginTop - this.marginBottom;
+			var stage:Stage = Starling.current.stage;
+			var maxWidth:Number = Math.min(stage.stageWidth, stage.stageHeight) - this.marginLeft - this.marginRight;
+			var maxHeight:Number = stage.stageHeight - this.marginTop - this.marginBottom;
+			var hasSetBounds:Boolean = false;
 			if(this.content is IFeathersControl)
 			{
-				const uiContent:IFeathersControl = IFeathersControl(this.content);
-				uiContent.minWidth = uiContent.maxWidth = maxWidth;
+				//if it's a ui control that is able to auto-size, this section
+				//will ensure that the control stays within the required bounds.
+				var uiContent:IFeathersControl = IFeathersControl(this.content);
+				uiContent.minWidth = maxWidth;
+				uiContent.maxWidth = maxWidth;
 				uiContent.maxHeight = maxHeight;
-				uiContent.validate();
+				hasSetBounds = true;
 			}
-			else
+			if(this.content is IValidating)
 			{
-				//if it's a ui control that is able to auto-size, the above
-				//section will ensure that the control stays within the required
-				//bounds.
-				//if it's not a ui control, or if the control's explicit width
-				//and height values are greater than our maximum bounds, then we
+				IValidating(this.content).validate();
+			}
+			if(!hasSetBounds)
+			{
+				//if it's not a ui control, and the control's explicit width and
+				//height values are greater than our maximum bounds, then we
 				//will enforce the maximum bounds the hard way.
 				if(this.content.width > maxWidth)
 				{
@@ -256,8 +264,9 @@ package feathers.controls.popups
 					this.content.height = maxHeight;
 				}
 			}
-			this.content.x = (Starling.current.stage.stageWidth - this.content.width) / 2;
-			this.content.y = (Starling.current.stage.stageHeight - this.content.height) / 2;
+			//round to the nearest pixel to avoid unnecessary smoothing
+			this.content.x = Math.round((stage.stageWidth - this.content.width) / 2);
+			this.content.y = Math.round((stage.stageHeight - this.content.height) / 2);
 		}
 
 		/**
@@ -305,7 +314,7 @@ package feathers.controls.popups
 			{
 				return;
 			}
-			const stage:Stage = Starling.current.stage;
+			var stage:Stage = Starling.current.stage;
 			if(this.touchPointID >= 0)
 			{
 				var touch:Touch = event.getTouch(stage, TouchPhase.ENDED, this.touchPointID);

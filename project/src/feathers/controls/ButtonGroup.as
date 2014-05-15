@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -14,6 +14,7 @@ package feathers.controls
 	import feathers.layout.LayoutBoundsResult;
 	import feathers.layout.VerticalLayout;
 	import feathers.layout.ViewPortBounds;
+	import feathers.skins.IStyleProvider;
 
 	import starling.display.DisplayObject;
 	import starling.events.Event;
@@ -37,6 +38,22 @@ package feathers.controls
 	 * {
 	 *    trace( "The button with label \"" + data.label + "\" was triggered." );
 	 * }</listing>
+	 *
+	 * <p>The properties of the event object have the following values:</p>
+	 * <table class="innertable">
+	 * <tr><th>Property</th><th>Value</th></tr>
+	 * <tr><td><code>bubbles</code></td><td>false</td></tr>
+	 * <tr><td><code>currentTarget</code></td><td>The Object that defines the
+	 *   event listener that handles the event. For example, if you use
+	 *   <code>myButton.addEventListener()</code> to register an event listener,
+	 *   myButton is the value of the <code>currentTarget</code>.</td></tr>
+	 * <tr><td><code>data</code></td><td>The item associated with the button
+	 *   that was triggered.</td></tr>
+	 * <tr><td><code>target</code></td><td>The Object that dispatched the event;
+	 *   it is not always the Object listening for the event. Use the
+	 *   <code>currentTarget</code> property to always access the Object
+	 *   listening for the event.</td></tr>
+	 * </table>
 	 *
 	 * @eventType starling.events.Event.TRIGGERED
 	 */
@@ -63,9 +80,28 @@ package feathers.controls
 	public class ButtonGroup extends FeathersControl
 	{
 		/**
+		 * The default <code>IStyleProvider</code> for all <code>ButtonGroup</code>
+		 * components.
+		 *
+		 * @default null
+		 * @see feathers.core.FeathersControl#styleProvider
+		 */
+		public static var styleProvider:IStyleProvider;
+
+		/**
 		 * @private
 		 */
 		protected static const INVALIDATION_FLAG_BUTTON_FACTORY:String = "buttonFactory";
+
+		/**
+		 * @private
+		 */
+		protected static const LABEL_FIELD:String = "label";
+
+		/**
+		 * @private
+		 */
+		protected static const ENABLED_FIELD:String = "isEnabled";
 
 		/**
 		 * @private
@@ -195,6 +231,7 @@ package feathers.controls
 		 */
 		public function ButtonGroup()
 		{
+			super();
 		}
 
 		/**
@@ -267,6 +304,14 @@ package feathers.controls
 		 * @private
 		 */
 		protected var inactiveButtons:Vector.<Button> = new <Button>[];
+
+		/**
+		 * @private
+		 */
+		override protected function get defaultStyleProvider():IStyleProvider
+		{
+			return ButtonGroup.styleProvider;
+		}
 
 		/**
 		 * @private
@@ -465,7 +510,7 @@ package feathers.controls
 		 *
 		 * @see #VERTICAL_ALIGN_TOP
 		 * @see #VERTICAL_ALIGN_MIDDLE
-		 * @see #VERTICAL_ALIGN_RIGHT
+		 * @see #VERTICAL_ALIGN_BOTTOM
 		 * @see #VERTICAL_ALIGN_JUSTIFY
 		 */
 		public function get verticalAlign():String
@@ -1011,7 +1056,7 @@ package feathers.controls
 				return;
 			}
 			this._buttonInitializer = value;
-			this.invalidate(INVALIDATION_FLAG_DATA);
+			this.invalidate(INVALIDATION_FLAG_BUTTON_FACTORY);
 		}
 
 		/**
@@ -1207,7 +1252,7 @@ package feathers.controls
 			}
 			if(!(value is PropertyProxy))
 			{
-				const newValue:PropertyProxy = new PropertyProxy();
+				var newValue:PropertyProxy = new PropertyProxy();
 				for(var propertyName:String in value)
 				{
 					newValue[propertyName] = value[propertyName];
@@ -1240,10 +1285,10 @@ package feathers.controls
 		 */
 		override protected function draw():void
 		{
-			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
-			const stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
-			const stateInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STATE);
-			const buttonFactoryInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_BUTTON_FACTORY);
+			var dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
+			var stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
+			var stateInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STATE);
+			var buttonFactoryInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_BUTTON_FACTORY);
 			var sizeInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SIZE);
 
 			if(dataInvalid || stateInvalid || buttonFactoryInvalid)
@@ -1274,7 +1319,7 @@ package feathers.controls
 		 */
 		protected function commitEnabled():void
 		{
-			const buttonCount:int = this.activeButtons.length;
+			var buttonCount:int = this.activeButtons.length;
 			for(var i:int = 0; i < buttonCount; i++)
 			{
 				var button:Button = this.activeButtons[i];
@@ -1287,15 +1332,12 @@ package feathers.controls
 		 */
 		protected function refreshButtonStyles():void
 		{
-			for each(var button:Button in this.activeButtons)
+			for(var propertyName:String in this._buttonProperties)
 			{
-				for(var propertyName:String in this._buttonProperties)
+				var propertyValue:Object = this._buttonProperties[propertyName];
+				for each(var button:Button in this.activeButtons)
 				{
-					var propertyValue:Object = this._buttonProperties[propertyName];
-					if(button.hasOwnProperty(propertyName))
-					{
-						button[propertyName] = propertyValue;
-					}
+					button[propertyName] = propertyValue;
 				}
 			}
 		}
@@ -1358,7 +1400,7 @@ package feathers.controls
 		{
 			if(item is Object)
 			{
-				if(item.hasOwnProperty("label"))
+				if(item.hasOwnProperty(LABEL_FIELD))
 				{
 					button.label = item.label as String;
 				}
@@ -1366,9 +1408,13 @@ package feathers.controls
 				{
 					button.label = item.toString();
 				}
-				if(item.hasOwnProperty("isEnabled"))
+				if(item.hasOwnProperty(ENABLED_FIELD))
 				{
 					button.isEnabled = item.isEnabled as Boolean;
+				}
+				else
+				{
+					button.isEnabled = this._isEnabled;
 				}
 				for each(var field:String in DEFAULT_BUTTON_FIELDS)
 				{
@@ -1379,9 +1425,25 @@ package feathers.controls
 				}
 				for each(field in DEFAULT_BUTTON_EVENTS)
 				{
+					var removeListener:Boolean = true;
 					if(item.hasOwnProperty(field))
 					{
-						button.addEventListener(field, item[field] as Function);
+						var listener:Function = item[field] as Function;
+						if(listener == null)
+						{
+							continue;
+						}
+						removeListener =  false;
+						//we can't add the listener directly because we don't
+						//know how to remove it later if the data provider
+						//changes and we lose the old item. we'll use another
+						//event listener that we control as a delegate, and
+						//we'll be able to remove it later.
+						button.addEventListener(field, defaultButtonEventsListener);
+					}
+					if(removeListener)
+					{
+						button.removeEventListener(field, defaultButtonEventsListener);
 					}
 				}
 			}
@@ -1389,7 +1451,6 @@ package feathers.controls
 			{
 				button.label = "";
 			}
-
 		}
 
 		/**
@@ -1425,8 +1486,8 @@ package feathers.controls
 			this.activeLastButton = null;
 
 			var pushIndex:int = 0;
-			const itemCount:int = this._dataProvider ? this._dataProvider.length : 0;
-			const lastItemIndex:int = itemCount - 1;
+			var itemCount:int = this._dataProvider ? this._dataProvider.length : 0;
+			var lastItemIndex:int = itemCount - 1;
 			for(var i:int = 0; i < itemCount; i++)
 			{
 				var item:Object = this._dataProvider.getItemAt(i);
@@ -1454,7 +1515,7 @@ package feathers.controls
 		 */
 		protected function clearInactiveButtons():void
 		{
-			const itemCount:int = this.inactiveButtons.length;
+			var itemCount:int = this.inactiveButtons.length;
 			for(var i:int = 0; i < itemCount; i++)
 			{
 				var button:Button = this.inactiveButtons.shift();
@@ -1479,6 +1540,7 @@ package feathers.controls
 		 */
 		protected function createFirstButton(item:Object):Button
 		{
+			var isNewInstance:Boolean = false;
 			if(this.inactiveFirstButton)
 			{
 				var button:Button = this.inactiveFirstButton;
@@ -1486,24 +1548,31 @@ package feathers.controls
 			}
 			else
 			{
-				const factory:Function = this._firstButtonFactory != null ? this._firstButtonFactory : this._buttonFactory;
+				isNewInstance = true;
+				var factory:Function = this._firstButtonFactory != null ? this._firstButtonFactory : this._buttonFactory;
 				button = Button(factory());
 				if(this._customFirstButtonName)
 				{
-					button.nameList.add(this._customFirstButtonName);
+					button.styleNameList.add(this._customFirstButtonName);
 				}
 				else if(this._customButtonName)
 				{
-					button.nameList.add(this._customButtonName);
+					button.styleNameList.add(this._customButtonName);
 				}
 				else
 				{
-					button.nameList.add(this.firstButtonName);
+					button.styleNameList.add(this.firstButtonName);
 				}
-				button.addEventListener(Event.TRIGGERED, button_triggeredHandler);
 				this.addChild(button);
 			}
 			this._buttonInitializer(button, item);
+			if(isNewInstance)
+			{
+				//we need to listen for Event.TRIGGERED after the initializer
+				//is called to avoid runtime errors because the button may be
+				//disposed by the time listeners in the initializer are called.
+				button.addEventListener(Event.TRIGGERED, button_triggeredHandler);
+			}
 			return button;
 		}
 
@@ -1512,6 +1581,7 @@ package feathers.controls
 		 */
 		protected function createLastButton(item:Object):Button
 		{
+			var isNewInstance:Boolean = false;
 			if(this.inactiveLastButton)
 			{
 				var button:Button = this.inactiveLastButton;
@@ -1519,24 +1589,31 @@ package feathers.controls
 			}
 			else
 			{
-				const factory:Function = this._lastButtonFactory != null ? this._lastButtonFactory : this._buttonFactory;
+				isNewInstance = true;
+				var factory:Function = this._lastButtonFactory != null ? this._lastButtonFactory : this._buttonFactory;
 				button = Button(factory());
 				if(this._customLastButtonName)
 				{
-					button.nameList.add(this._customLastButtonName);
+					button.styleNameList.add(this._customLastButtonName);
 				}
 				else if(this._customButtonName)
 				{
-					button.nameList.add(this._customButtonName);
+					button.styleNameList.add(this._customButtonName);
 				}
 				else
 				{
-					button.nameList.add(this.lastButtonName);
+					button.styleNameList.add(this.lastButtonName);
 				}
-				button.addEventListener(Event.TRIGGERED, button_triggeredHandler);
 				this.addChild(button);
 			}
 			this._buttonInitializer(button, item);
+			if(isNewInstance)
+			{
+				//we need to listen for Event.TRIGGERED after the initializer
+				//is called to avoid runtime errors because the button may be
+				//disposed by the time listeners in the initializer are called.
+				button.addEventListener(Event.TRIGGERED, button_triggeredHandler);
+			}
 			return button;
 		}
 
@@ -1545,18 +1622,19 @@ package feathers.controls
 		 */
 		protected function createButton(item:Object):Button
 		{
+			var isNewInstance:Boolean = false;
 			if(this.inactiveButtons.length == 0)
 			{
+				isNewInstance = true;
 				var button:Button = this._buttonFactory();
 				if(this._customButtonName)
 				{
-					button.nameList.add(this._customButtonName);
+					button.styleNameList.add(this._customButtonName);
 				}
 				else
 				{
-					button.nameList.add(this.buttonName);
+					button.styleNameList.add(this.buttonName);
 				}
-				button.addEventListener(Event.TRIGGERED, button_triggeredHandler);
 				this.addChild(button);
 			}
 			else
@@ -1564,6 +1642,13 @@ package feathers.controls
 				button = this.inactiveButtons.shift();
 			}
 			this._buttonInitializer(button, item);
+			if(isNewInstance)
+			{
+				//we need to listen for Event.TRIGGERED after the initializer
+				//is called to avoid runtime errors because the button may be
+				//disposed by the time listeners in the initializer are called.
+				button.addEventListener(Event.TRIGGERED, button_triggeredHandler);
+			}
 			return button;
 		}
 
@@ -1623,10 +1708,47 @@ package feathers.controls
 		 */
 		protected function button_triggeredHandler(event:Event):void
 		{
+			//if this was called after dispose, ignore it
+			if(!this._dataProvider || !this.activeButtons)
+			{
+				return;
+			}
 			var button:Button = Button(event.currentTarget);
 			var index:int = this.activeButtons.indexOf(button);
 			var item:Object = this._dataProvider.getItemAt(index);
 			this.dispatchEventWith(Event.TRIGGERED, false, item);
+		}
+
+		/**
+		 * @private
+		 */
+		protected function defaultButtonEventsListener(event:Event):void
+		{
+			var button:Button = Button(event.currentTarget);
+			var index:int = this.activeButtons.indexOf(button);
+			var item:Object = this._dataProvider.getItemAt(index);
+			var field:String = event.type;
+			if(item.hasOwnProperty(field))
+			{
+				var listener:Function = item[field] as Function;
+				if(listener == null)
+				{
+					return;
+				}
+				var argCount:int = listener.length;
+				if(argCount == 1)
+				{
+					listener(event);
+				}
+				else if(argCount == 2)
+				{
+					listener(event, event.data);
+				}
+				else
+				{
+					listener();
+				}
+			}
 		}
 	}
 }

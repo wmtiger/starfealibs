@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -9,6 +9,7 @@ package feathers.controls.text
 {
 	import feathers.core.FeathersControl;
 	import feathers.core.ITextRenderer;
+	import feathers.skins.IStyleProvider;
 
 	import flash.display.BitmapData;
 	import flash.display.DisplayObjectContainer;
@@ -16,7 +17,6 @@ package feathers.controls.text
 	import flash.geom.Matrix;
 	import flash.geom.Point;
 	import flash.geom.Rectangle;
-	import flash.text.TextSnapshot;
 	import flash.text.engine.ContentElement;
 	import flash.text.engine.ElementFormat;
 	import flash.text.engine.FontDescription;
@@ -72,6 +72,32 @@ package feathers.controls.text
 		private static const HELPER_RECTANGLE:Rectangle = new Rectangle();
 
 		/**
+		 * @private
+		 */
+		private static var HELPER_TEXT_LINES:Vector.<TextLine> = new <TextLine>[];
+
+		/**
+		 * @private
+		 * This is enforced by the runtime.
+		 */
+		protected static const MAX_TEXT_LINE_WIDTH:Number = 1000000;
+
+		/**
+		 * @private
+		 */
+		protected static const LINE_FEED:String = "\n";
+
+		/**
+		 * @private
+		 */
+		protected static const CARRIAGE_RETURN:String = "\r";
+
+		/**
+		 * @private
+		 */
+		protected static const FUZZY_TRUNCATION_DIFFERENCE:Number = 0.000001;
+
+		/**
 		 * The text will be positioned to the left edge.
 		 *
 		 * @see #textAlign
@@ -93,16 +119,20 @@ package feathers.controls.text
 		public static const TEXT_ALIGN_RIGHT:String = "right";
 
 		/**
-		 * @private
-		 * This is enforced by the runtime.
+		 * The default <code>IStyleProvider</code> for all <code>TextBlockTextRenderer</code>
+		 * components.
+		 *
+		 * @default null
+		 * @see feathers.core.FeathersControl#styleProvider
 		 */
-		protected static const MAX_TEXT_LINE_WIDTH:Number = 1000000;
+		public static var styleProvider:IStyleProvider;
 
 		/**
 		 * Constructor.
 		 */
 		public function TextBlockTextRenderer()
 		{
+			super();
 			this.isQuickHitAreaEnabled = true;
 			this.addEventListener(Event.ADDED_TO_STAGE, addedToStageHandler);
 			this.addEventListener(Event.REMOVED_FROM_STAGE, removedFromStageHandler);
@@ -174,7 +204,25 @@ package feathers.controls.text
 		/**
 		 * @private
 		 */
+		protected var _truncationOffset:int = 0;
+
+		/**
+		 * @private
+		 */
 		protected var _textElement:TextElement;
+
+		/**
+		 * @private
+		 */
+		override protected function get defaultStyleProvider():IStyleProvider
+		{
+			return TextBlockTextRenderer.styleProvider;
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _text:String;
 
 		/**
 		 * @inheritDoc
@@ -188,7 +236,7 @@ package feathers.controls.text
 		 */
 		public function get text():String
 		{
-			return this._textElement ? this._textElement.text : null;
+			return this._textElement ? this._text : null;
 		}
 
 		/**
@@ -196,18 +244,17 @@ package feathers.controls.text
 		 */
 		public function set text(value:String):void
 		{
-			var textElement:TextElement = this._textElement;
-			if(textElement && textElement.text == value)
+			if(this._text == value)
 			{
 				return;
 			}
-			if(!textElement)
+			this._text = value;
+			if(!this._textElement)
 			{
-				textElement = new TextElement(value);
-				this.content = textElement;
-				return;
+				this._textElement = new TextElement(value);
 			}
-			textElement.text = value;
+			this._textElement.text = value;
+			this.content = this._textElement;
 			this.invalidate(INVALIDATION_FLAG_DATA);
 		}
 
@@ -255,6 +302,10 @@ package feathers.controls.text
 			if(value is TextElement)
 			{
 				this._textElement = TextElement(value);
+			}
+			else
+			{
+				this._textElement = null;
 			}
 			this._content = value;
 			this.invalidate(INVALIDATION_FLAG_DATA);
@@ -451,8 +502,7 @@ package feathers.controls.text
 			{
 				return 0;
 			}
-			var line:TextLine = this._textLines[0];
-			return line.getBaselinePosition(TextBaseline.ROMAN);
+			return this._textLines[0].ascent;
 		}
 
 		/**
@@ -882,6 +932,86 @@ package feathers.controls.text
 		/**
 		 * @private
 		 */
+		protected var _truncationText:String = "...";
+
+		/**
+		 * The text to display at the end of the label if it is truncated.
+		 *
+		 * <p>In the following example, the truncation text is changed:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.truncationText = " [more]";</listing>
+		 *
+		 * @default "..."
+		 *
+		 * @see #truncateToFit
+		 */
+		public function get truncationText():String
+		{
+			return _truncationText;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set truncationText(value:String):void
+		{
+			if(this._truncationText == value)
+			{
+				return;
+			}
+			this._truncationText = value;
+			this.invalidate(INVALIDATION_FLAG_DATA);
+		}
+
+		/**
+		 * @private
+		 */
+		protected var _truncateToFit:Boolean = true;
+
+		/**
+		 * If word wrap is disabled, and the text is longer than the width of
+		 * the label, the text may be truncated using <code>truncationText</code>.
+		 *
+		 * <p>This feature may be disabled to improve performance.</p>
+		 *
+		 * <p>This feature only works when the <code>text</code> property is
+		 * set to a string value. If the <code>content</code> property is set
+		 * instead, then the content will not be truncated.</p>
+		 *
+		 * <p>This feature does not currently support the truncation of text
+		 * displayed on multiple lines.</p>
+		 *
+		 * <p>In the following example, truncation is disabled:</p>
+		 *
+		 * <listing version="3.0">
+		 * textRenderer.truncateToFit = false;</listing>
+		 *
+		 * @default true
+		 *
+		 * @see #truncationText
+		 */
+		public function get truncateToFit():Boolean
+		{
+			return _truncateToFit;
+		}
+
+		/**
+		 * @private
+		 */
+		public function set truncateToFit(value:Boolean):void
+		{
+			if(this._truncateToFit == value)
+			{
+				return;
+			}
+			this._truncateToFit = value;
+			this.invalidate(INVALIDATION_FLAG_DATA);
+		}
+
+		/**
+		 * @private
+		 */
 		override public function dispose():void
 		{
 			this.disposeContent();
@@ -925,8 +1055,8 @@ package feathers.controls.text
 				return result;
 			}
 
-			const needsWidth:Boolean = isNaN(this.explicitWidth);
-			const needsHeight:Boolean = isNaN(this.explicitHeight);
+			var needsWidth:Boolean = this.explicitWidth != this.explicitWidth; //isNaN
+			var needsHeight:Boolean = this.explicitHeight != this.explicitHeight; //isNaN
 			if(!needsWidth && !needsHeight)
 			{
 				result.x = this.explicitWidth;
@@ -979,9 +1109,9 @@ package feathers.controls.text
 		 */
 		protected function commit():void
 		{
-			const stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
-			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
-			const stateInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STATE);
+			var stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
+			var dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
+			var stateInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STATE);
 
 			if(dataInvalid || stylesInvalid || stateInvalid)
 			{
@@ -1027,8 +1157,8 @@ package feathers.controls.text
 				result = new Point();
 			}
 
-			var needsWidth:Boolean = isNaN(this.explicitWidth);
-			var needsHeight:Boolean = isNaN(this.explicitHeight);
+			var needsWidth:Boolean = this.explicitWidth != this.explicitWidth; //isNaN
+			var needsHeight:Boolean = this.explicitHeight != this.explicitHeight; //isNaN
 			var newWidth:Number = this.explicitWidth;
 			var newHeight:Number = this.explicitHeight;
 			if(needsWidth)
@@ -1043,12 +1173,7 @@ package feathers.controls.text
 			{
 				newHeight = this._maxHeight;
 			}
-			var textLineWidth:Number = newWidth;
-			if(!this._wordWrap)
-			{
-				textLineWidth = MAX_TEXT_LINE_WIDTH;
-			}
-			this.refreshTextLines(this._measurementTextLines, this._measurementTextLineContainer, textLineWidth, newHeight);
+			this.refreshTextLines(this._measurementTextLines, this._measurementTextLineContainer, newWidth, newHeight);
 			if(needsWidth)
 			{
 				newWidth = this._measurementTextLineContainer.width;
@@ -1073,8 +1198,8 @@ package feathers.controls.text
 		 */
 		protected function layout(sizeInvalid:Boolean):void
 		{
-			const stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
-			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
+			var stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
+			var dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
 
 			if(sizeInvalid)
 			{
@@ -1096,7 +1221,7 @@ package feathers.controls.text
 				{
 					this._snapshotHeight = getNextPowerOfTwo(rectangleSnapshotHeight);
 				}
-				const textureRoot:ConcreteTexture = this.textSnapshot ? this.textSnapshot.texture.root : null;
+				var textureRoot:ConcreteTexture = this.textSnapshot ? this.textSnapshot.texture.root : null;
 				this._needsNewTexture = this._needsNewTexture || !this.textSnapshot || this._snapshotWidth != textureRoot.width || this._snapshotHeight != textureRoot.height;
 			}
 
@@ -1111,12 +1236,7 @@ package feathers.controls.text
 				this._previousContentHeight = this.actualHeight;
 				if(this._content)
 				{
-					var textLineWidth:Number = this.actualWidth;
-					if(!this._wordWrap)
-					{
-						textLineWidth = MAX_TEXT_LINE_WIDTH;
-					}
-					this.refreshTextLines(this._textLines, this._textLineContainer, textLineWidth, this.actualHeight);
+					this.refreshTextLines(this._textLines, this._textLineContainer, this.actualWidth, this.actualHeight);
 					this.refreshSnapshot();
 				}
 				if(this.textSnapshot)
@@ -1144,8 +1264,8 @@ package feathers.controls.text
 		 */
 		protected function autoSizeIfNeeded():Boolean
 		{
-			const needsWidth:Boolean = isNaN(this.explicitWidth);
-			const needsHeight:Boolean = isNaN(this.explicitHeight);
+			var needsWidth:Boolean = this.explicitWidth != this.explicitWidth; //isNaN
+			var needsHeight:Boolean = this.explicitHeight != this.explicitHeight; //isNaN
 			if(!needsWidth && !needsHeight)
 			{
 				return false;
@@ -1172,12 +1292,13 @@ package feathers.controls.text
 			{
 				return;
 			}
+			var scaleFactor:Number = Starling.contentScaleFactor;
 			HELPER_MATRIX.identity();
-			HELPER_MATRIX.scale(Starling.contentScaleFactor, Starling.contentScaleFactor);
+			HELPER_MATRIX.scale(scaleFactor, scaleFactor);
 			var totalBitmapWidth:Number = this._snapshotWidth;
 			var totalBitmapHeight:Number = this._snapshotHeight;
-			var clipWidth:Number = this.actualWidth;
-			var clipHeight:Number = this.actualHeight;
+			var clipWidth:Number = this.actualWidth * scaleFactor;
+			var clipHeight:Number = this.actualHeight * scaleFactor;
 			var xPosition:Number = 0;
 			var yPosition:Number = 0;
 			var bitmapData:BitmapData;
@@ -1216,7 +1337,7 @@ package feathers.controls.text
 					var newTexture:Texture;
 					if(!this.textSnapshot || this._needsNewTexture)
 					{
-						newTexture = Texture.fromBitmapData(bitmapData, false, false, Starling.contentScaleFactor);
+						newTexture = Texture.fromBitmapData(bitmapData, false, false, scaleFactor);
 						newTexture.root.onRestore = texture_onRestore;
 					}
 					var snapshot:Image = null;
@@ -1252,7 +1373,7 @@ package feathers.controls.text
 						else
 						{
 							//this is faster, if we haven't resized the bitmapdata
-							const existingTexture:Texture = snapshot.texture;
+							var existingTexture:Texture = snapshot.texture;
 							existingTexture.root.uploadBitmapData(bitmapData);
 						}
 					}
@@ -1264,8 +1385,8 @@ package feathers.controls.text
 					{
 						this.textSnapshot = snapshot;
 					}
-					snapshot.x = xPosition;
-					snapshot.y = yPosition;
+					snapshot.x = xPosition / scaleFactor;
+					snapshot.y = yPosition / scaleFactor;
 					snapshotIndex++;
 					yPosition += currentBitmapHeight;
 					totalBitmapHeight -= currentBitmapHeight;
@@ -1276,6 +1397,7 @@ package feathers.controls.text
 				totalBitmapWidth -= currentBitmapWidth;
 				clipWidth -= currentBitmapWidth;
 				yPosition = 0;
+				clipHeight = this.actualHeight * scaleFactor;
 				totalBitmapHeight = this._snapshotHeight;
 			}
 			while(totalBitmapWidth > 0)
@@ -1337,10 +1459,16 @@ package feathers.controls.text
 		 */
 		protected function refreshTextLines(textLines:Vector.<TextLine>, textLineParent:DisplayObjectContainer, width:Number, height:Number):void
 		{
-			var textLineCache:Vector.<TextLine>;
+			if(this._textElement)
+			{
+				this._textElement.text = this._text;
+				this._truncationOffset = 0;
+			}
+			HELPER_TEXT_LINES.length = 0;
 			var yPosition:Number = 0;
 			var lineCount:int = textLines.length;
 			var lastLine:TextLine;
+			var cacheIndex:int = lineCount;
 			for(var i:int = 0; i < lineCount; i++)
 			{
 				var line:TextLine = textLines[i];
@@ -1348,6 +1476,7 @@ package feathers.controls.text
 				{
 					line.filters = this._nativeFilters;
 					lastLine = line;
+					textLines[i] = line;
 					continue;
 				}
 				else
@@ -1359,30 +1488,45 @@ package feathers.controls.text
 						//we're using this value in the next loop
 						lastLine = null;
 					}
-					textLineCache = textLines.splice(i, lineCount - i);
+					cacheIndex = i;
 					break;
 				}
 			}
+			//copy the invalid text lines over to the helper vector so that we
+			//can reuse them
+			for(; i < lineCount; i++)
+			{
+				HELPER_TEXT_LINES[int(i - cacheIndex)] = textLines[i];
+			}
+			textLines.length = cacheIndex;
 
 			if(width >= 0)
 			{
+				var lineStartIndex:int = 0;
+				var canTruncate:Boolean = this._truncateToFit && this._textElement && !this._wordWrap;
 				var pushIndex:int = textLines.length;
-				var inactiveTextLineCount:int = textLineCache ? textLineCache.length : 0;
+				var inactiveTextLineCount:int = HELPER_TEXT_LINES.length;
 				while(true)
 				{
+					var previousLine:TextLine = line;
+					var lineWidth:Number = width;
+					if(!this._wordWrap)
+					{
+						lineWidth = MAX_TEXT_LINE_WIDTH;
+					}
 					if(inactiveTextLineCount > 0)
 					{
-						var inactiveLine:TextLine = textLineCache[0];
-						line = this.textBlock.recreateTextLine(inactiveLine, line, width, 0, true);
+						var inactiveLine:TextLine = HELPER_TEXT_LINES[0];
+						line = this.textBlock.recreateTextLine(inactiveLine, previousLine, lineWidth, 0, true);
 						if(line)
 						{
-							textLineCache.shift();
+							HELPER_TEXT_LINES.shift();
 							inactiveTextLineCount--;
 						}
 					}
 					else
 					{
-						line = this.textBlock.createTextLine(line, width, 0, true);
+						line = this.textBlock.createTextLine(previousLine, lineWidth, 0, true);
 						if(line)
 						{
 							textLineParent.addChild(line);
@@ -1392,6 +1536,43 @@ package feathers.controls.text
 					{
 						//end of text
 						break;
+					}
+					var lineLength:int = line.rawTextLength;
+					var isTruncated:Boolean = false;
+					var difference:Number = 0;
+					while(canTruncate && (difference = line.width - width) > FUZZY_TRUNCATION_DIFFERENCE)
+					{
+						isTruncated = true;
+						if(this._truncationOffset == 0)
+						{
+							//this will quickly skip all of the characters after
+							//the maximum width of the line, instead of going
+							//one by one.
+							var endIndex:int = line.getAtomIndexAtPoint(width, 0);
+							if(endIndex >= 0)
+							{
+								this._truncationOffset = line.rawTextLength - endIndex;
+							}
+						}
+						this._truncationOffset++;
+						var truncatedTextLength:int = lineLength - this._truncationOffset;
+						//we want to start at this line so that the previous
+						//lines don't become invalid.
+						this._textElement.text = this._text.substr(lineStartIndex, truncatedTextLength) + this._truncationText;
+						var lineBreakIndex:int = this._text.indexOf(LINE_FEED, lineStartIndex);
+						if(lineBreakIndex < 0)
+						{
+							lineBreakIndex = this._text.indexOf(CARRIAGE_RETURN, lineStartIndex);
+						}
+						if(lineBreakIndex >= 0)
+						{
+							this._textElement.text += this._text.substr(lineBreakIndex);
+						}
+						line = this.textBlock.recreateTextLine(line, null, lineWidth, 0, true);
+						if(truncatedTextLength <= 0)
+						{
+							break;
+						}
 					}
 					if(pushIndex > 0)
 					{
@@ -1403,6 +1584,7 @@ package feathers.controls.text
 					line.filters = this._nativeFilters;
 					textLines[pushIndex] = line;
 					pushIndex++;
+					lineStartIndex += lineLength;
 				}
 			}
 
@@ -1424,17 +1606,13 @@ package feathers.controls.text
 				}
 			}
 
-			if(!textLineCache)
-			{
-				return;
-			}
-
-			inactiveTextLineCount = textLineCache.length;
+			inactiveTextLineCount = HELPER_TEXT_LINES.length;
 			for(i = 0; i < inactiveTextLineCount; i++)
 			{
-				line = textLineCache.shift();
+				line = HELPER_TEXT_LINES[i];
 				textLineParent.removeChild(line);
 			}
+			HELPER_TEXT_LINES.length = 0;
 		}
 
 		/**

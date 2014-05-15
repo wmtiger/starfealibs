@@ -29,6 +29,7 @@ package starling.textures
         private var mParent:Texture;
         private var mOwnsParent:Boolean;
         private var mFrame:Rectangle;
+        private var mRotated:Boolean;
         private var mWidth:Number;
         private var mHeight:Number;
         private var mTransformationMatrix:Matrix;
@@ -60,8 +61,9 @@ package starling.textures
                 region = new Rectangle(0, 0, parentTexture.width, parentTexture.height);
             
             mParent = parentTexture;
-            mFrame = frame;
+            mFrame = frame ? frame.clone() : null;
             mOwnsParent = ownsParent;
+            mRotated = rotated;
             mWidth  = rotated ? region.height : region.width;
             mHeight = rotated ? region.width  : region.height;
             mTransformationMatrix = new Matrix();
@@ -98,8 +100,8 @@ package starling.textures
                 if (count != 4)
                     throw new ArgumentError("Textures with a frame can only be used on quads");
                 
-                var deltaRight:Number  = mFrame.width  + mFrame.x - width;
-                var deltaBottom:Number = mFrame.height + mFrame.y - height;
+                var deltaRight:Number  = mFrame.width  + mFrame.x - mWidth;
+                var deltaBottom:Number = mFrame.height + mFrame.y - mHeight;
                 
                 vertexData.translateVertex(vertexID,     -mFrame.x, -mFrame.y);
                 vertexData.translateVertex(vertexID + 1, -deltaRight, -mFrame.y);
@@ -145,6 +147,9 @@ package starling.textures
         /** Indicates if the parent texture is disposed when this object is disposed. */
         public function get ownsParent():Boolean { return mOwnsParent; }
         
+        /** If true, the SubTexture will show the parent region rotated by 90 degrees (CCW). */
+        public function get rotated():Boolean { return mRotated; }
+
         /** The clipping rectangle, which is the region provided on initialization 
          *  scaled into [0.0, 1.0]. */
         public function get clipping():Rectangle
@@ -161,6 +166,12 @@ package starling.textures
             RectangleUtil.normalize(clipping);
             return clipping;
         }
+        
+        /** The matrix that is used to transform the texture coordinates into the coordinate
+         *  space of the parent texture (used internally by the "adjust..."-methods).
+         *
+         *  <p>CAUTION: not a copy, but the actual object! Do not modify!</p> */
+        public function get transformationMatrix():Matrix { return mTransformationMatrix; }
         
         /** @inheritDoc */
         public override function get base():TextureBase { return mParent.base; }
@@ -193,9 +204,9 @@ package starling.textures
         public override function get scale():Number { return mParent.scale; }
         
         /** @inheritDoc */
-        public override function get frame():Rectangle
-        {
-            return mFrame ? mFrame.clone() : super.frame;
-        }
+        public override function get repeat():Boolean { return mParent.repeat; }
+        
+        /** @inheritDoc */
+        public override function get frame():Rectangle { return mFrame; }
     }
 }

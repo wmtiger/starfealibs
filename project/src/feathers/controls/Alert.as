@@ -1,12 +1,21 @@
+/*
+Feathers
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
+
+This program is free software. You can redistribute and/or modify it in
+accordance with the terms of the accompanying license agreement.
+*/
 package feathers.controls
 {
 	import feathers.core.FeathersControl;
 	import feathers.core.IFeathersControl;
 	import feathers.core.ITextRenderer;
+	import feathers.core.IValidating;
 	import feathers.core.PopUpManager;
 	import feathers.core.PropertyProxy;
 	import feathers.data.ListCollection;
 	import feathers.layout.VerticalLayout;
+	import feathers.skins.IStyleProvider;
 
 	import starling.display.DisplayObject;
 	import starling.events.Event;
@@ -23,6 +32,21 @@ package feathers.controls
 	 * the event object will contain the item from the <code>ButtonGroup</code>
 	 * data provider for the button that is triggered. If no button is
 	 * triggered, then the <code>data</code> property will be <code>null</code>.
+	 *
+	 * <p>The properties of the event object have the following values:</p>
+	 * <table class="innertable">
+	 * <tr><th>Property</th><th>Value</th></tr>
+	 * <tr><td><code>bubbles</code></td><td>false</td></tr>
+	 * <tr><td><code>currentTarget</code></td><td>The Object that defines the
+	 *   event listener that handles the event. For example, if you use
+	 *   <code>myButton.addEventListener()</code> to register an event listener,
+	 *   myButton is the value of the <code>currentTarget</code>.</td></tr>
+	 * <tr><td><code>data</code></td><td>null</td></tr>
+	 * <tr><td><code>target</code></td><td>The Object that dispatched the event;
+	 *   it is not always the Object listening for the event. Use the
+	 *   <code>currentTarget</code> property to always access the Object
+	 *   listening for the event.</td></tr>
+	 * </table>
 	 *
 	 * @eventType starling.events.Event.CLOSE
 	 */
@@ -49,15 +73,6 @@ package feathers.controls
 	 *         { label: "OK" }
 	 *     ]);
 	 * }</listing>
-	 *
-	 * <p><strong>Beta Component:</strong> This is a new component, and its APIs
-	 * may need some changes between now and the next version of Feathers to
-	 * account for overlooked requirements or other issues. Upgrading to future
-	 * versions of Feathers may involve manual changes to your code that uses
-	 * this component. The
-	 * <a href="http://wiki.starling-framework.org/feathers/deprecation-policy">Feathers deprecation policy</a>
-	 * will not go into effect until this component's status is upgraded from
-	 * beta to stable.</p>
 	 *
 	 * @see http://wiki.starling-framework.org/feathers/alert
 	 */
@@ -132,6 +147,15 @@ package feathers.controls
 		 * @see #show()
 		 */
 		public static var overlayFactory:Function;
+
+		/**
+		 * The default <code>IStyleProvider</code> for all <code>Alert</code>
+		 * components.
+		 *
+		 * @default null
+		 * @see feathers.core.FeathersControl#styleProvider
+		 */
+		public static var styleProvider:IStyleProvider;
 
 		/**
 		 * The default factory that creates alerts when <code>Alert.show()</code>
@@ -239,6 +263,14 @@ package feathers.controls
 		 * <p>For internal use in subclasses.</p>
 		 */
 		protected var messageTextRenderer:ITextRenderer;
+
+		/**
+		 * @private
+		 */
+		override protected function get defaultStyleProvider():IStyleProvider
+		{
+			return Alert.styleProvider;
+		}
 
 		/**
 		 * @private
@@ -675,9 +707,9 @@ package feathers.controls
 
 			if(this._icon)
 			{
-				if(this._icon is IFeathersControl)
+				if(this._icon is IValidating)
 				{
-					IFeathersControl(this._icon).validate();
+					IValidating(this._icon).validate();
 				}
 				this._icon.x = this._paddingLeft;
 				this._icon.y = this._topViewPortOffset + (this._viewPort.height - this._icon.height) / 2;
@@ -689,20 +721,20 @@ package feathers.controls
 		 */
 		override protected function autoSizeIfNeeded():Boolean
 		{
-			const needsWidth:Boolean = isNaN(this.explicitWidth);
-			const needsHeight:Boolean = isNaN(this.explicitHeight);
+			var needsWidth:Boolean = isNaN(this.explicitWidth);
+			var needsHeight:Boolean = isNaN(this.explicitHeight);
 			if(!needsWidth && !needsHeight)
 			{
 				return false;
 			}
 
-			if(this._icon is IFeathersControl)
+			if(this._icon is IValidating)
 			{
-				IFeathersControl(this._icon).validate();
+				IValidating(this._icon).validate();
 			}
 
-			const oldHeaderWidth:Number = this.header.width;
-			const oldHeaderHeight:Number = this.header.height;
+			var oldHeaderWidth:Number = this.header.width;
+			var oldHeaderHeight:Number = this.header.height;
 			this.header.width = this.explicitWidth;
 			this.header.maxWidth = this._maxWidth;
 			this.header.height = NaN;
@@ -710,8 +742,8 @@ package feathers.controls
 
 			if(this.footer)
 			{
-				const oldFooterWidth:Number = this.footer.width;
-				const oldFooterHeight:Number = this.footer.height;
+				var oldFooterWidth:Number = this.footer.width;
+				var oldFooterHeight:Number = this.footer.height;
 				this.footer.width = this.explicitWidth;
 				this.footer.maxWidth = this._maxWidth;
 				this.footer.height = NaN;
@@ -828,10 +860,10 @@ package feathers.controls
 				this.messageTextRenderer = null;
 			}
 
-			const factory:Function = this._messageFactory != null ? this._messageFactory : FeathersControl.defaultTextRendererFactory;
+			var factory:Function = this._messageFactory != null ? this._messageFactory : FeathersControl.defaultTextRendererFactory;
 			this.messageTextRenderer = ITextRenderer(factory());
-			const uiTextRenderer:IFeathersControl = IFeathersControl(this.messageTextRenderer);
-			uiTextRenderer.nameList.add(this.messageName);
+			var uiTextRenderer:IFeathersControl = IFeathersControl(this.messageTextRenderer);
+			uiTextRenderer.styleNameList.add(this.messageName);
 			uiTextRenderer.touchable = false;
 			this.addChild(DisplayObject(this.messageTextRenderer));
 		}
@@ -859,14 +891,10 @@ package feathers.controls
 		 */
 		protected function refreshMessageStyles():void
 		{
-			const displayMessageRenderer:DisplayObject = DisplayObject(this.messageTextRenderer);
 			for(var propertyName:String in this._messageProperties)
 			{
-				if(displayMessageRenderer.hasOwnProperty(propertyName))
-				{
-					var propertyValue:Object = this._messageProperties[propertyName];
-					displayMessageRenderer[propertyName] = propertyValue;
-				}
+				var propertyValue:Object = this._messageProperties[propertyName];
+				this.messageTextRenderer[propertyName] = propertyValue;
 			}
 		}
 
@@ -878,9 +906,9 @@ package feathers.controls
 			super.calculateViewPortOffsets(forceScrollBars, useActualBounds);
 			if(this._icon)
 			{
-				if(this._icon is IFeathersControl)
+				if(this._icon is IValidating)
 				{
-					IFeathersControl(this._icon).validate();
+					IValidating(this._icon).validate();
 				}
 				if(!isNaN(this._icon.width))
 				{

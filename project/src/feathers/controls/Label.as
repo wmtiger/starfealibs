@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -10,6 +10,7 @@ package feathers.controls
 	import feathers.core.FeathersControl;
 	import feathers.core.ITextRenderer;
 	import feathers.core.PropertyProxy;
+	import feathers.skins.IStyleProvider;
 
 	import flash.geom.Point;
 
@@ -23,6 +24,11 @@ package feathers.controls
 	 */
 	public class Label extends FeathersControl
 	{
+		/**
+		 * @private
+		 */
+		private static const HELPER_POINT:Point = new Point();
+
 		/**
 		 * An alternate name to use with <code>Label</code> to allow a theme to
 		 * give it a larger style meant for headings. If a theme does not provide
@@ -38,7 +44,7 @@ package feathers.controls
 		 * <listing version="3.0">
 		 * var label:Label = new Label();
 		 * label.text = "Very Important Heading";
-		 * label.nameList.add( Label.ALTERNATE_NAME_HEADING );
+		 * label.styleNameList.add( Label.ALTERNATE_NAME_HEADING );
 		 * this.addChild( label );</listing>
 		 *
 		 * @see feathers.core.IFeathersControl#nameList
@@ -60,7 +66,7 @@ package feathers.controls
 		 * <listing version="3.0">
 		 * var label:Label = new Label();
 		 * label.text = "Less important, detailed text";
-		 * label.nameList.add( Label.ALTERNATE_NAME_DETAIL );
+		 * label.styleNameList.add( Label.ALTERNATE_NAME_DETAIL );
 		 * this.addChild( label );</listing>
 		 *
 		 * @see feathers.core.IFeathersControl#nameList
@@ -68,15 +74,20 @@ package feathers.controls
 		public static const ALTERNATE_NAME_DETAIL:String = "feathers-detail-label";
 
 		/**
-		 * @private
+		 * The default <code>IStyleProvider</code> for all <code>Label</code>
+		 * components.
+		 *
+		 * @default null
+		 * @see feathers.core.FeathersControl#styleProvider
 		 */
-		private static const HELPER_POINT:Point = new Point();
+		public static var styleProvider:IStyleProvider;
 
 		/**
 		 * Constructor.
 		 */
 		public function Label()
 		{
+			super();
 			this.isQuickHitAreaEnabled = true;
 		}
 
@@ -87,6 +98,14 @@ package feathers.controls
 		 * @see #textRendererFactory
 		 */
 		protected var textRenderer:ITextRenderer;
+
+		/**
+		 * @private
+		 */
+		override protected function get defaultStyleProvider():IStyleProvider
+		{
+			return Label.styleProvider;
+		}
 
 		/**
 		 * @private
@@ -261,11 +280,11 @@ package feathers.controls
 		 */
 		override protected function draw():void
 		{
-			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
-			const stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
+			var dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
+			var stylesInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STYLES);
 			var sizeInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SIZE);
-			const stateInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STATE);
-			const textRendererInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_TEXT_RENDERER);
+			var stateInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_STATE);
+			var textRendererInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_TEXT_RENDERER);
 
 			if(textRendererInvalid)
 			{
@@ -310,8 +329,8 @@ package feathers.controls
 		 */
 		protected function autoSizeIfNeeded():Boolean
 		{
-			const needsWidth:Boolean = isNaN(this.explicitWidth);
-			const needsHeight:Boolean = isNaN(this.explicitHeight);
+			var needsWidth:Boolean = isNaN(this.explicitWidth);
+			var needsHeight:Boolean = isNaN(this.explicitHeight);
 			if(!needsWidth && !needsHeight)
 			{
 				return false;
@@ -370,7 +389,7 @@ package feathers.controls
 				this.textRenderer = null;
 			}
 
-			const factory:Function = this._textRendererFactory != null ? this._textRendererFactory : FeathersControl.defaultTextRendererFactory;
+			var factory:Function = this._textRendererFactory != null ? this._textRendererFactory : FeathersControl.defaultTextRendererFactory;
 			this.textRenderer = ITextRenderer(factory());
 			this.addChild(DisplayObject(this.textRenderer));
 		}
@@ -397,14 +416,10 @@ package feathers.controls
 		 */
 		protected function refreshTextRendererStyles():void
 		{
-			const displayTextRenderer:DisplayObject = DisplayObject(this.textRenderer);
 			for(var propertyName:String in this._textRendererProperties)
 			{
-				if(displayTextRenderer.hasOwnProperty(propertyName))
-				{
-					var propertyValue:Object = this._textRendererProperties[propertyName];
-					displayTextRenderer[propertyName] = propertyValue;
-				}
+				var propertyValue:Object = this._textRendererProperties[propertyName];
+				this.textRenderer[propertyName] = propertyValue;
 			}
 		}
 

@@ -1,27 +1,51 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
 */
 package feathers.display
 {
+	import feathers.core.IValidating;
+	import feathers.core.ValidationQueue;
 	import feathers.textures.Scale3Textures;
+	import feathers.utils.display.getDisplayObjectDepthFromStage;
 
 	import flash.errors.IllegalOperationError;
 	import flash.geom.Matrix;
 	import flash.geom.Point;
 	import flash.geom.Rectangle;
 
-	import starling.core.RenderSupport;
+	import starling.core.Starling;
 	import starling.display.DisplayObject;
 	import starling.display.Image;
 	import starling.display.QuadBatch;
 	import starling.display.Sprite;
 	import starling.events.Event;
+	import starling.textures.Texture;
 	import starling.textures.TextureSmoothing;
 	import starling.utils.MatrixUtil;
+
+	[Exclude(name="numChildren",kind="property")]
+	[Exclude(name="isFlattened",kind="property")]
+	[Exclude(name="addChild",kind="method")]
+	[Exclude(name="addChildAt",kind="method")]
+	[Exclude(name="broadcastEvent",kind="method")]
+	[Exclude(name="broadcastEventWith",kind="method")]
+	[Exclude(name="contains",kind="method")]
+	[Exclude(name="getChildAt",kind="method")]
+	[Exclude(name="getChildByName",kind="method")]
+	[Exclude(name="getChildIndex",kind="method")]
+	[Exclude(name="removeChild",kind="method")]
+	[Exclude(name="removeChildAt",kind="method")]
+	[Exclude(name="removeChildren",kind="method")]
+	[Exclude(name="setChildIndex",kind="method")]
+	[Exclude(name="sortChildren",kind="method")]
+	[Exclude(name="swapChildren",kind="method")]
+	[Exclude(name="swapChildrenAt",kind="method")]
+	[Exclude(name="flatten",kind="method")]
+	[Exclude(name="unflatten",kind="method")]
 
 	/**
 	 * Scales an image like a "pill" shape with three regions, either
@@ -29,7 +53,7 @@ package feathers.display
 	 * aspect ratio, and the middle region stretches to fill the remaining
 	 * space.
 	 */
-	public class Scale3Image extends Sprite
+	public class Scale3Image extends Sprite implements IValidating
 	{
 		/**
 		 * @private
@@ -62,6 +86,7 @@ package feathers.display
 			this.addChild(this._batch);
 
 			this.addEventListener(Event.FLATTEN, flattenHandler);
+			this.addEventListener(Event.ADDED_TO_STAGE, addedToStageHandler);
 		}
 
 		/**
@@ -78,7 +103,7 @@ package feathers.display
 		 * @private
 		 */
 		private var _layoutChanged:Boolean = true;
-		
+
 		/**
 		 * @private
 		 */
@@ -116,9 +141,15 @@ package feathers.display
 				return;
 			}
 			this._textures = value;
-			this._frame = this._textures.texture.frame;
+			var texture:Texture = this._textures.texture;
+			this._frame = texture.frame;
+			if(!this._frame)
+			{
+				this._frame = new Rectangle(0, 0, texture.width, texture.height);
+			}
 			this._layoutChanged = true;
 			this._renderingChanged = true;
+			this.invalidate();
 		}
 
 		/**
@@ -145,6 +176,7 @@ package feathers.display
 			}
 			this._width = this._hitArea.width = value;
 			this._layoutChanged = true;
+			this.invalidate();
 		}
 
 		/**
@@ -171,6 +203,7 @@ package feathers.display
 			}
 			this._height = this._hitArea.height = value;
 			this._layoutChanged = true;
+			this.invalidate();
 		}
 
 		/**
@@ -204,6 +237,7 @@ package feathers.display
 			}
 			this._textureScale = value;
 			this._layoutChanged = true;
+			this.invalidate();
 		}
 
 		/**
@@ -239,6 +273,7 @@ package feathers.display
 			}
 			this._smoothing = value;
 			this._propertiesChanged = true;
+			this.invalidate();
 		}
 
 		/**
@@ -272,6 +307,7 @@ package feathers.display
 			}
 			this._color = value;
 			this._propertiesChanged = true;
+			this.invalidate();
 		}
 
 		/**
@@ -306,6 +342,7 @@ package feathers.display
 			}
 			this._useSeparateBatch = value;
 			this._renderingChanged = true;
+			this.invalidate();
 		}
 
 		/**
@@ -317,6 +354,34 @@ package feathers.display
 		 * @private
 		 */
 		private var _batch:QuadBatch;
+
+		/**
+		 * @private
+		 */
+		private var _isValidating:Boolean = false;
+
+		/**
+		 * @private
+		 */
+		private var _isInvalid:Boolean = false;
+
+		/**
+		 * @private
+		 */
+		private var _validationQueue:ValidationQueue;
+
+		/**
+		 * @private
+		 */
+		private var _depth:int = -1;
+
+		/**
+		 * @copy feathers.core.IValidating#depth
+		 */
+		public function get depth():int
+		{
+			return this._depth;
+		}
 
 		/**
 		 * @private
@@ -397,30 +462,22 @@ package feathers.display
 		}
 
 		/**
-		 * @private
+		 * @copy feathers.core.IValidating#validate()
 		 */
-		override public function render(support:RenderSupport, parentAlpha:Number):void
+		public function validate():void
 		{
-			this.validate();
-			super.render(support, parentAlpha);
-		}
-
-		/**
-		 * Readjusts the dimensions of the image according to its current
-		 * textures. Call this method to synchronize image and texture size
-		 * after assigning textures with a different size.
-		 */
-		public function readjustSize():void
-		{
-			this.width = this._frame.width * this._textureScale;
-			this.height = this._frame.height * this._textureScale;
-		}
-
-		/**
-		 * @private
-		 */
-		private function validate():void
-		{
+			if(!this._validationQueue || !this.stage || !this._isInvalid)
+			{
+				return;
+			}
+			if(this._isValidating)
+			{
+				//we were already validating, and something else told us to
+				//validate. that's bad.
+				this._validationQueue.addControl(this, true);
+				return;
+			}
+			this._isValidating = true;
 			if(this._propertiesChanged || this._layoutChanged || this._renderingChanged)
 			{
 				this._batch.batchable = !this._useSeparateBatch;
@@ -428,7 +485,10 @@ package feathers.display
 
 				if(!helperImage)
 				{
-					helperImage = new Image(this._textures.first);
+					//because Scale3Textures enforces it, we know for sure that
+					//this texture will have a size greater than zero, so there
+					//won't be an error from Quad.
+					helperImage = new Image(this._textures.second);
 				}
 				helperImage.smoothing = this._smoothing;
 				helperImage.color = this._color;
@@ -538,6 +598,36 @@ package feathers.display
 			this._propertiesChanged = false;
 			this._layoutChanged = false;
 			this._renderingChanged = false;
+			this._isInvalid = false;
+			this._isValidating = false;
+		}
+
+		/**
+		 * Readjusts the dimensions of the image according to its current
+		 * textures. Call this method to synchronize image and texture size
+		 * after assigning textures with a different size.
+		 */
+		public function readjustSize():void
+		{
+			this.width = this._frame.width * this._textureScale;
+			this.height = this._frame.height * this._textureScale;
+		}
+
+		/**
+		 * @private
+		 */
+		protected function invalidate():void
+		{
+			if(this._isInvalid)
+			{
+				return;
+			}
+			this._isInvalid = true;
+			if(!this._validationQueue)
+			{
+				return;
+			}
+			this._validationQueue.addControl(this, false);
 		}
 
 		/**
@@ -546,6 +636,19 @@ package feathers.display
 		private function flattenHandler(event:Event):void
 		{
 			this.validate();
+		}
+
+		/**
+		 * @private
+		 */
+		private function addedToStageHandler(event:Event):void
+		{
+			this._depth = getDisplayObjectDepthFromStage(this);
+			this._validationQueue = ValidationQueue.forStarling(Starling.current);
+			if(this._isInvalid)
+			{
+				this._validationQueue.addControl(this, false);
+			}
 		}
 	}
 }

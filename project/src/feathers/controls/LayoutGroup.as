@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -9,12 +9,14 @@ package feathers.controls
 {
 	import feathers.core.FeathersControl;
 	import feathers.core.IFeathersControl;
+	import feathers.core.IValidating;
 	import feathers.events.FeathersEventType;
 	import feathers.layout.ILayout;
 	import feathers.layout.ILayoutDisplayObject;
 	import feathers.layout.IVirtualLayout;
 	import feathers.layout.LayoutBoundsResult;
 	import feathers.layout.ViewPortBounds;
+	import feathers.skins.IStyleProvider;
 
 	import flash.geom.Rectangle;
 
@@ -44,15 +46,6 @@ package feathers.controls
 	 * noButton.label = "No";
 	 * group.addChild( noButton );</listing>
 	 *
-	 * <p><strong>Beta Component:</strong> This is a new component, and its APIs
-	 * may need some changes between now and the next version of Feathers to
-	 * account for overlooked requirements or other issues. Upgrading to future
-	 * versions of Feathers may involve manual changes to your code that uses
-	 * this component. The
-	 * <a href="http://wiki.starling-framework.org/feathers/deprecation-policy">Feathers deprecation policy</a>
-	 * will not go into effect until this component's status is upgraded from
-	 * beta to stable.</p>
-	 *
 	 * @see http://wiki.starling-framework.org/feathers/layout-group
 	 * @see feathers.controls.ScrollContainer
 	 */
@@ -69,10 +62,20 @@ package feathers.controls
 		protected static const INVALIDATION_FLAG_CLIPPING:String = "clipping";
 
 		/**
+		 * The default <code>IStyleProvider</code> for all <code>LayoutGroup</code>
+		 * components.
+		 *
+		 * @default null
+		 * @see feathers.core.FeathersControl#styleProvider
+		 */
+		public static var styleProvider:IStyleProvider;
+
+		/**
 		 * Constructor.
 		 */
 		public function LayoutGroup()
 		{
+			super();
 		}
 
 		/**
@@ -90,6 +93,14 @@ package feathers.controls
 		 * @private
 		 */
 		protected var _layoutResult:LayoutBoundsResult = new LayoutBoundsResult();
+
+		/**
+		 * @private
+		 */
+		override protected function get defaultStyleProvider():IStyleProvider
+		{
+			return LayoutGroup.styleProvider;
+		}
 
 		/**
 		 * @private
@@ -171,7 +182,7 @@ package feathers.controls
 			}
 			if(this._mxmlContent && this._mxmlContentIsReady)
 			{
-				const childCount:int = this._mxmlContent.length;
+				var childCount:int = this._mxmlContent.length;
 				for(var i:int = 0; i < childCount; i++)
 				{
 					var child:DisplayObject = DisplayObject(this._mxmlContent[i]);
@@ -267,7 +278,7 @@ package feathers.controls
 		 */
 		override public function removeChildAt(index:int, dispose:Boolean = false):DisplayObject
 		{
-			const child:DisplayObject = super.removeChildAt(index, dispose);
+			var child:DisplayObject = super.removeChildAt(index, dispose);
 			if(child is IFeathersControl)
 			{
 				child.removeEventListener(FeathersEventType.RESIZE, child_resizeHandler);
@@ -359,13 +370,19 @@ package feathers.controls
 		 */
 		override protected function draw():void
 		{
-			const layoutInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_LAYOUT);
+			var layoutInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_LAYOUT);
 			var sizeInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SIZE);
-			const clippingInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_CLIPPING);
+			var clippingInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_CLIPPING);
 			//we don't have scrolling, but a subclass might
-			const scrollInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SCROLL);
+			var scrollInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SCROLL);
 
-			if(scrollInvalid || sizeInvalid || layoutInvalid)
+			//scrolling only affects the layout is requiresLayoutOnScroll is true
+			if(!layoutInvalid && scrollInvalid && this._layout && this._layout.requiresLayoutOnScroll)
+			{
+				layoutInvalid = true;
+			}
+
+			if(sizeInvalid || layoutInvalid)
 			{
 				this.refreshViewPortBounds();
 				if(this._layout)
@@ -415,13 +432,13 @@ package feathers.controls
 			var maxX:Number = isNaN(this.viewPortBounds.explicitWidth) ? 0 : this.viewPortBounds.explicitWidth;
 			var maxY:Number = isNaN(this.viewPortBounds.explicitHeight) ? 0 : this.viewPortBounds.explicitHeight;
 			this._ignoreChildChanges = true;
-			const itemCount:int = this.items.length;
+			var itemCount:int = this.items.length;
 			for(var i:int = 0; i < itemCount; i++)
 			{
 				var item:DisplayObject = this.items[i];
-				if(item is IFeathersControl)
+				if(item is IValidating)
 				{
-					IFeathersControl(item).validate();
+					IValidating(item).validate();
 				}
 				var itemMaxX:Number = item.x + item.width;
 				var itemMaxY:Number = item.y + item.height;
@@ -443,13 +460,13 @@ package feathers.controls
 		 */
 		protected function validateChildren():void
 		{
-			const itemCount:int = this.items.length;
+			var itemCount:int = this.items.length;
 			for(var i:int = 0; i < itemCount; i++)
 			{
 				var item:DisplayObject = this.items[i];
-				if(item is IFeathersControl)
+				if(item is IValidating)
 				{
-					IFeathersControl(item).validate();
+					IValidating(item).validate();
 				}
 			}
 		}
@@ -463,7 +480,7 @@ package feathers.controls
 			{
 				return;
 			}
-			const childCount:int = this._mxmlContent.length;
+			var childCount:int = this._mxmlContent.length;
 			for(var i:int = 0; i < childCount; i++)
 			{
 				var child:DisplayObject = DisplayObject(this._mxmlContent[i]);
@@ -484,7 +501,7 @@ package feathers.controls
 					this.clipRect = new Rectangle();
 				}
 
-				const clipRect:Rectangle = this.clipRect;
+				var clipRect:Rectangle = this.clipRect;
 				clipRect.x = 0;
 				clipRect.y = 0;
 				clipRect.width = this.actualWidth;

@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -9,6 +9,7 @@ package feathers.controls.renderers
 {
 	import feathers.controls.GroupedList;
 	import feathers.controls.LayoutGroup;
+	import feathers.skins.IStyleProvider;
 
 	import starling.events.Event;
 
@@ -28,24 +29,33 @@ package feathers.controls.renderers
 	 * layouts that can automatically adjust positions when the list resizes.
 	 * Create <code>AnchorLayoutData</code> objects to define the constraints.</p>
 	 *
-	 * <p><strong>Beta Component:</strong> This is a new component, and its APIs
-	 * may need some changes between now and the next version of Feathers to
-	 * account for overlooked requirements or other issues. Upgrading to future
-	 * versions of Feathers may involve manual changes to your code that uses
-	 * this component. The
-	 * <a href="http://wiki.starling-framework.org/feathers/deprecation-policy">Feathers deprecation policy</a>
-	 * will not go into effect until this component's status is upgraded from
-	 * beta to stable.</p>
-	 *
 	 * @see feathers.controls.GroupedList
 	 */
 	public class LayoutGroupGroupedListItemRenderer extends LayoutGroup implements IGroupedListItemRenderer
 	{
 		/**
+		 * The default <code>IStyleProvider</code> for all <code>LayoutGroupGroupedListItemRenderer</code>
+		 * components.
+		 *
+		 * @default null
+		 * @see feathers.core.FeathersControl#styleProvider
+		 */
+		public static var styleProvider:IStyleProvider;
+
+		/**
 		 * Constructor.
 		 */
 		public function LayoutGroupGroupedListItemRenderer()
 		{
+			super();
+		}
+
+		/**
+		 * @private
+		 */
+		override protected function get defaultStyleProvider():IStyleProvider
+		{
+			return LayoutGroupGroupedListItemRenderer.styleProvider;
 		}
 
 		/**
@@ -204,10 +214,10 @@ package feathers.controls.renderers
 		 */
 		override protected function draw():void
 		{
-			const dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
-			const scrollInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SCROLL);
-			const sizeInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SIZE);
-			const layoutInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_LAYOUT);
+			var dataInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_DATA);
+			var scrollInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SCROLL);
+			var sizeInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_SIZE);
+			var layoutInvalid:Boolean = this.isInvalid(INVALIDATION_FLAG_LAYOUT);
 
 			if(dataInvalid)
 			{

@@ -1,6 +1,6 @@
 /*
 Feathers
-Copyright 2012-2013 Joshua Tynjala. All Rights Reserved.
+Copyright 2012-2014 Joshua Tynjala. All Rights Reserved.
 
 This program is free software. You can redistribute and/or modify it in
 accordance with the terms of the accompanying license agreement.
@@ -380,7 +380,7 @@ package feathers.text
 		{
 			this._textField = new TextField();
 			this._textField.type = TextFieldType.INPUT;
-			const isMultiline:Boolean = initOptions && initOptions.hasOwnProperty("multiline") && initOptions.multiline;
+			var isMultiline:Boolean = initOptions && initOptions.hasOwnProperty("multiline") && initOptions.multiline;
 			this._textField.multiline = isMultiline;
 			this._textField.wordWrap = isMultiline;
 			this._textField.addEventListener(Event.CHANGE, textField_eventHandler);
